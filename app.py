@@ -15,7 +15,7 @@ st.write("Sincronización en tiempo real desde **Google Sheets**.")
 # 🔗 URL pública CSV de tu Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv"
 
-# Estilos CSS personalizados para la leyenda de estados condicionales
+# Estilos CSS personalizados para la leyenda de estados condicionales y contenedor horizontal
 st.markdown("""
 <style>
     .badge {
@@ -170,7 +170,7 @@ try:
             lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Integración"
         )
 
-        # Orden prioritario de columnas (Sin 'Region' y con 'Días Transcurridos' después de 'Condición / Estado')
+        # Orden prioritario de columnas
         cols_ordenadas = [
             'Condición / Estado', 'Días Transcurridos', 'Site Name', 'Territorio Comercial', 
             'Proyecto', 'SS IMP', 'Integracion', 
@@ -201,7 +201,20 @@ try:
         styled_df = df_final.style.map(colorear_condicion, subset=['Condición / Estado'])
 
         st.subheader(f"Lista de Sitios ({len(df_final)} mostrados)")
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        
+        # Configuración de anchos para garantizar el scroll horizontal y lectura cómoda
+        st.dataframe(
+            styled_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Condición / Estado": st.column_config.TextColumn("Condición / Estado", width="medium"),
+                "Días Transcurridos": st.column_config.TextColumn("Días Transcurridos", width="small"),
+                "Site Name": st.column_config.TextColumn("Site Name", width="medium"),
+                "Territorio Comercial": st.column_config.TextColumn("Territorio Comercial", width="medium"),
+                "Comentario": st.column_config.TextColumn("Comentario", width="large"),
+            }
+        )
 
         # Botón de descarga en CSV
         csv = df_final.to_csv(index=False).encode('utf-8')
