@@ -12,7 +12,7 @@ st.set_page_config(
 st.title("📡 Tablero de Control de Sitios - Equipo RF 4")
 st.write("Vista general de **todos los sitios de Equipo RF = 4** sin Fecha de InSrv, clasificados según su estado de integración y días transcurridos.")
 
-# Estilos CSS personalizados
+# Estilos CSS personalizados para la leyenda
 st.markdown("""
 <style>
     .badge {
@@ -153,19 +153,20 @@ if uploaded_file is not None:
             
             df_final = df_display[cols_existentes + otras_cols]
 
-            # Función para colorear cada fila según su estado
-            def colorear_por_estado(row):
-                estado = row.get('Condición / Estado')
-                if estado == "🚨 Crítico (>= 16 días)":
-                    return ['background-color: #f8d7da; color: #842029; font-weight: bold;'] * len(row)
-                elif estado == "⚠️ Alerta (8 - 15 días)":
-                    return ['background-color: #fff3cd; color: #664d03; font-weight: bold;'] * len(row)
-                elif estado == "✅ En Norma (< 8 días)":
-                    return ['background-color: #d1e7dd; color: #0f5132; font-weight: bold;'] * len(row)
+            # Función para colorear SOLAMENTE la celda de la columna 'Condición / Estado'
+            def colorear_celda_condicion(val):
+                if val == "🚨 Crítico (>= 16 días)":
+                    return 'background-color: #f8d7da; color: #842029; font-weight: bold;'
+                elif val == "⚠️ Alerta (8 - 15 días)":
+                    return 'background-color: #fff3cd; color: #664d03; font-weight: bold;'
+                elif val == "✅ En Norma (< 8 días)":
+                    return 'background-color: #d1e7dd; color: #0f5132; font-weight: bold;'
+                elif val == "⏳ Pendiente Integración":
+                    return 'background-color: #e2e3e5; color: #41464b; font-weight: bold;'
                 else:
-                    return ['background-color: #f8f9fa; color: #495057;'] * len(row)
+                    return ''
 
-            styled_df = df_final.style.apply(colorear_por_estado, axis=1)
+            styled_df = df_final.style.map(colorear_celda_condicion, subset=['Condición / Estado'])
 
             st.subheader(f"Lista Completa de Sitios RF 4 ({len(df_final)} sitios)")
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
