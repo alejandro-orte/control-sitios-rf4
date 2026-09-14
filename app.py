@@ -4,13 +4,13 @@ from datetime import datetime
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Control de Sitios RF 4",
+    page_title="Control General de Sitios BSS",
     page_icon="📡",
     layout="wide"
 )
 
-st.title("📡 Tablero de Control de Sitios - Equipo RF 4")
-st.write("Vista general de **todos los sitios de Equipo RF = 4** sin Fecha de InSrv, clasificados según su estado de integración y días transcurridos.")
+st.title("📡 Tablero de Control General de Sitios BSS")
+st.write("Vista de **todos los sitios** pendientes de pase a servicio (sin Fecha InSrv), con clasificación de estado y filtro dinámico por **Equipo RF**.")
 
 # Estilos CSS personalizados para la leyenda
 st.markdown("""
@@ -54,19 +54,16 @@ if uploaded_file is not None:
         if not required_cols.issubset(df.columns):
             st.error(f"El archivo debe contener las siguientes columnas: {required_cols}")
         else:
-            # 1. Filtrar Equipo RF == 4
-            df_rf4 = df[df['Equipo RF'] == 4].copy()
-
-            # 2. Filtrar sin Fecha InSrv (pendientes de pasar a servicio)
-            df_rf4 = df_rf4[
-                df_rf4['Fecha InSrv'].isna() | 
-                (df_rf4['Fecha InSrv'].astype(str).str.strip() == '') | 
-                (df_rf4['Fecha InSrv'].astype(str).str.upper() == 'NAN')
+            # 1. Filtrar todos los sitios sin Fecha InSrv (pendientes de pasar a servicio)
+            df_sin_insrv = df[
+                df['Fecha InSrv'].isna() | 
+                (df['Fecha InSrv'].astype(str).str.strip() == '') | 
+                (df['Fecha InSrv'].astype(str).str.upper() == 'NAN')
             ].copy()
 
             # Convertir Fecha Integracion
-            df_rf4['Fecha_Integracion_DT'] = pd.to_datetime(
-                df_rf4['Fecha Integracion'], 
+            df_sin_insrv['Fecha_Integracion_DT'] = pd.to_datetime(
+                df_sin_insrv['Fecha Integracion'], 
                 format='%d/%m/%Y', 
                 errors='coerce'
             )
@@ -75,7 +72,7 @@ if uploaded_file is not None:
             fecha_actual = pd.Timestamp.now().floor('d')
 
             # Calcular días transcurridos
-            df_rf4['Dias_Desde_Integracion'] = (fecha_actual - df_rf4['Fecha_Integracion_DT']).dt.days
+            df_sin_insrv['Dias_Desde_Integracion'] = (fecha_actual - df_sin_insrv['Fecha_Integracion_DT']).dt.days
 
             # Clasificación de condición
             def clasificar_estado(row):
@@ -90,7 +87,7 @@ if uploaded_file is not None:
                 else:
                     return "Fecha Futura / Error"
 
-            df_rf4['Condición / Estado'] = df_rf4.apply(clasificar_estado, axis=1)
+            df_sin_insrv['Condición / Estado'] = df_sin_insrv.apply(clasificar_estado, axis=1)
 
             # Ordenar la tabla: Primero Críticos, luego Alertas, luego En Norma, luego Pendientes
             prioridad_map = {
@@ -100,42 +97,48 @@ if uploaded_file is not None:
                 "⏳ Pendiente Integración": 4,
                 "Fecha Futura / Error": 5
             }
-            df_rf4['Prioridad'] = df_rf4['Condición / Estado'].map(prioridad_map)
-            df_rf4 = df_rf4.sort_values(by=['Prioridad', 'Dias_Desde_Integracion'], ascending=[True, False])
+            df_sin_insrv['Prioridad'] = df_sin_insrv['Condición / Estado'].map(prioridad_map)
+            df_sin_insrv = df_sin_insrv.sort_values(by=['Prioridad', 'Dias_Desde_Integracion'], ascending=[True, False])
 
-            # Métricas en tarjetas
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.metric("Total Sitios RF4", len(df_rf4))
-            col2.metric("🚨 Críticos (>=16d)", (df_rf4['Condición / Estado'] == "🚨 Crítico (>= 16 días)").sum())
-            col3.metric("⚠️ Alerta (8-15d)", (df_rf4['Condición / Estado'] == "⚠️ Alerta (8 - 15 días)").sum())
-            col4.metric("✅ En Norma (<8d)", (df_rf4['Condición / Estado'] == "✅ En Norma (< 8 días)").sum())
-            col5.metric("⏳ Sin Integrar", (df_rf4['Condición / Estado'] == "⏳ Pendiente Integración").sum())
+            # --- FILTROS EN BARRA LATERAL ---
+            st.sidebar.header("🔍 Filtros de Búsqueda")
 
-            st.markdown("---")
+            # 1. Filtro por Equipo RF
+            equipos_rf_disponibles = ['Todos'] + sorted(list(df_sin_insrv['Equipo RF'].dropna().unique()))
+            equipo_rf_sel = st.sidebar.selectbox("Filtrar por Equipo RF", equipos_rf_disponibles)
 
-            # Filtros en la barra lateral
-            st.sidebar.header("Filtros de Búsqueda")
+            df_filtrado = df_sin_insrv.copy()
+            if equipo_rf_sel != 'Todos':
+                df_filtrado = df_filtrado[df_filtrado['Equipo RF'] == equipo_rf_sel]
 
-            # Filtro por estado
-            estados_disponibles = ['Todos'] + list(df_rf4['Condición / Estado'].unique())
+            # 2. Filtro por Condición / Estado
+            estados_disponibles = ['Todos'] + list(df_filtrado['Condición / Estado'].unique())
             estado_sel = st.sidebar.selectbox("Filtrar por Condición / Estado", estados_disponibles)
             
             if estado_sel != 'Todos':
-                df_filtrado = df_rf4[df_rf4['Condición / Estado'] == estado_sel]
-            else:
-                df_filtrado = df_rf4.copy()
+                df_filtrado = df_filtrado[df_filtrado['Condición / Estado'] == estado_sel]
 
-            # Filtro por MasterPlan
+            # 3. Filtro por MasterPlan
             if 'MasterPlan' in df_filtrado.columns:
-                planes = ['Todos'] + list(df_filtrado['MasterPlan'].dropna().unique())
+                planes = ['Todos'] + sorted(list(df_filtrado['MasterPlan'].dropna().unique()))
                 plan_sel = st.sidebar.selectbox("Filtrar por MasterPlan", planes)
                 if plan_sel != 'Todos':
                     df_filtrado = df_filtrado[df_filtrado['MasterPlan'] == plan_sel]
 
-            # Búsqueda por nombre de sitio
+            # 4. Búsqueda por nombre de sitio
             busqueda = st.sidebar.text_input("Buscar por nombre de Sitio")
             if busqueda:
                 df_filtrado = df_filtrado[df_filtrado['Sitio'].astype(str).str.contains(busqueda, case=False, na=False)]
+
+            # Métricas adaptadas al filtro actual
+            col1, col2, col3, col4, col5 = st.columns(5)
+            col1.metric("Total Sitios", len(df_filtrado))
+            col2.metric("🚨 Críticos (>=16d)", (df_filtrado['Condición / Estado'] == "🚨 Crítico (>= 16 días)").sum())
+            col3.metric("⚠️ Alerta (8-15d)", (df_filtrado['Condición / Estado'] == "⚠️ Alerta (8 - 15 días)").sum())
+            col4.metric("✅ En Norma (<8d)", (df_filtrado['Condición / Estado'] == "✅ En Norma (< 8 días)").sum())
+            col5.metric("⏳ Sin Integrar", (df_filtrado['Condición / Estado'] == "⏳ Pendiente Integración").sum())
+
+            st.markdown("---")
 
             # Formatear columna de días para visualización
             df_display = df_filtrado.copy()
@@ -145,7 +148,7 @@ if uploaded_file is not None:
 
             # Reorganizar columnas principales
             cols_prioritarias = [
-                'Sitio', 'Condición / Estado', 'MasterPlan', 'Equipo RF', 
+                'Sitio', 'Equipo RF', 'Condición / Estado', 'MasterPlan', 
                 'Fecha Integracion', 'Días Sin InSrv', 'Fecha InSrv'
             ]
             cols_existentes = [c for c in cols_prioritarias if c in df_display.columns]
@@ -153,7 +156,7 @@ if uploaded_file is not None:
             
             df_final = df_display[cols_existentes + otras_cols]
 
-            # Función para colorear SOLAMENTE la celda de la columna 'Condición / Estado'
+            # Función para colorear SOLAMENTE la casilla de 'Condición / Estado'
             def colorear_celda_condicion(val):
                 if val == "🚨 Crítico (>= 16 días)":
                     return 'background-color: #f8d7da; color: #842029; font-weight: bold;'
@@ -168,15 +171,15 @@ if uploaded_file is not None:
 
             styled_df = df_final.style.map(colorear_celda_condicion, subset=['Condición / Estado'])
 
-            st.subheader(f"Lista Completa de Sitios RF 4 ({len(df_final)} sitios)")
+            st.subheader(f"Lista de Sitios ({len(df_final)} sitios mostrados)")
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
             # Botón de descarga en CSV
             csv = df_final.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Descargar Tabla Completa (CSV)",
+                label="📥 Descargar Tabla Filtrada (CSV)",
                 data=csv,
-                file_name=f"todos_sitios_rf4_estados_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"sitios_bss_filtrados_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
 
