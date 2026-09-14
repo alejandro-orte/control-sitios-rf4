@@ -10,7 +10,31 @@ st.set_page_config(
 )
 
 st.title("📡 Monitoreo de Sitios - Equipo RF 4 (Sin Fecha InSrv)")
-st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para mostrar **únicamente los sitios de Equipo RF = 4 que no cuentan con Fecha InSrv**, ordenados de **mayor a menor** según los días transcurridos desde su integración.")
+st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para monitorear los sitios con **Equipo RF = 4 sin Fecha InSrv**, ordenados por días transcurridos con semaforización de alertas.")
+
+# Leyenda de colores
+st.markdown("""
+<style>
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: white;
+        display: inline-block;
+    }
+    .ok { background-color: #28a745; }
+    .warning { background-color: #f39c12; }
+    .danger { background-color: #dc3545; }
+    .pending { background-color: #6c757d; }
+</style>
+<div style="margin-bottom: 15px;">
+    <b>Semaforización por Días desde Integración:</b> 
+    <span class="badge ok">0 - 7 días (Normal)</span> 
+    <span class="badge warning">8 - 15 días (Alerta)</span> 
+    <span class="badge danger">16+ días (Crítico)</span> 
+    <span class="badge pending">Sin Integrar</span>
+</div>
+""", unsafe_allow_html=True)
 
 # Cargador de archivo
 uploaded_file = st.file_uploader("Cargar archivo de Plan BSS (.xls / .xlsx)", type=["xls", "xlsx"])
@@ -39,7 +63,7 @@ if uploaded_file is not None:
                 (df_rf4['Fecha InSrv'].astype(str).str.upper() == 'NAN')
             ]
 
-            # Convertir Fecha Integracion a formato datetime
+            # Convertir Fecha Integracion a datetime
             df_rf4['Fecha_Integracion_DT'] = pd.to_datetime(
                 df_rf4['Fecha Integracion'], 
                 format='%d/%m/%Y', 
@@ -52,15 +76,18 @@ if uploaded_file is not None:
             # Calcular días transcurridos desde la integración
             df_rf4['Dias_Desde_Integracion'] = (fecha_actual - df_rf4['Fecha_Integracion_DT']).dt.days
 
-            # 3. ORDENAR DESCENDENTE POR DÍAS (de mayor a menor)
-            # Los sitios no integrados (NaN) se colocan al final
+            # Ordenar descendente por días (mayor tiempo primero)
             df_rf4 = df_rf4.sort_values(by='Dias_Desde_Integracion', ascending=False, na_position='last')
 
             # Tarjetas de métricas
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Sitios RF 4 Sin InSrv", len(df_rf4))
-            col2.metric("Integrados (Pendientes InSrv)", df_rf4['Fecha_Integracion_DT'].notna().sum())
-            col3.metric("Pendientes Integración", df_rf4['Fecha_Integracion_DT'].isna().sum())
+            
+            criticos = (df_rf4['Dias_Desde_Integracion'] >= 16).sum()
+            alertas = ((df_rf4['Dias_Desde_Integracion'] >= 8) & (df_rf4['Dias_Desde_Integracion'] <= 15)).sum()
+            
+            col2.metric("🚨 Estado Crítico (>15 días)", criticos)
+            col3.metric("⚠️ En Alerta (8-15 días)", alertas)
             
             promedio_dias = df_rf4['Dias_Desde_Integracion'].mean()
             col4.metric("Promedio Días Transcurridos", f"{promedio_dias:.1f} días" if pd.notnull(promedio_dias) else "N/A")
@@ -76,15 +103,19 @@ if uploaded_file is not None:
                 if plan_sel != 'Todos':
                     df_rf4 = df_rf4[df_rf4['MasterPlan'] == plan_sel]
 
-            filtro_estado = st.sidebar.radio(
-                "Estado de Integración",
-                ["Todos", "Solo Integrados", "Solo Pendientes"]
+            filtro_semaforo = st.sidebar.selectbox(
+                "Filtrar por Estado de Alerta",
+                ["Todos", "🚨 Críticos (16+ días)", "⚠️ Alerta (8-15 días)", "✅ Normal (0-7 días)", "⚪ Sin Integrar"]
             )
-            
-            if filtro_estado == "Solo Integrados":
-                df_rf4 = df_rf4[df_rf4['Fecha_Integracion_DT'].notna()]
-            elif filtro_estado == "Solo Pendientes":
-                df_rf4 = df_rf4[df_rf4['Fecha_Integracion_DT'].isna()]
+
+            if filtro_semaforo == "🚨 Críticos (16+ días)":
+                df_rf4 = df_rf4[df_rf4['Dias_Desde_Integracion'] >= 16]
+            elif filtro_semaforo == "⚠️ Alerta (8-15 días)":
+                df_rf4 = df_rf4[(df_rf4['Dias_Desde_Integracion'] >= 8) & (df_rf4['Dias_Desde_Integracion'] <= 15)]
+            elif filtro_semaforo == "✅ Normal (0-7 días)":
+                df_rf4 = df_rf4[(df_rf4['Dias_Desde_Integracion'] >= 0) & (df_rf4['Dias_Desde_Integracion'] <= 7)]
+            elif filtro_semaforo == "⚪ Sin Integrar":
+                df_rf4 = df_rf4[df_rf4['Dias_Desde_Integracion'].isna()]
 
             busqueda = st.sidebar.text_input("Buscar por nombre de Sitio")
             if busqueda:
@@ -103,15 +134,30 @@ if uploaded_file is not None:
             
             df_final = df_display[cols_existentes + otras_cols]
 
-            st.subheader("Tabla de Sitios (Ordenados por Mayor Tiempo Integrado)")
-            st.dataframe(df_final, use_container_width=True, hide_index=True)
+            # Función para aplicar estilos visuales suaves por fila
+            def resaltar_filas(row):
+                dias = row.get('Dias_Desde_Integracion')
+                if pd.isna(dias):
+                    return ['color: #6c757d;'] * len(row)
+                elif dias >= 16:
+                    return ['background-color: #f8d7da; color: #842029; font-weight: bold;'] * len(row)  # Rojo elegante
+                elif dias >= 8:
+                    return ['background-color: #fff3cd; color: #664d03; font-weight: bold;'] * len(row)  # Amarillo suave
+                else:
+                    return ['background-color: #d1e7dd; color: #0f5132;'] * len(row)  # Verde suave
+
+            # Aplicar estilos
+            styled_df = df_final.style.apply(resaltar_filas, axis=1)
+
+            st.subheader("Tabla de Sitios con Alertas de Tiempo")
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
             # Descargar reporte
             csv = df_final.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Descargar Reporte en CSV",
                 data=csv,
-                file_name=f"sitios_rf4_sin_insrv_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"sitios_rf4_alertas_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
 
