@@ -12,7 +12,7 @@ st.set_page_config(
 st.title("📡 Tablero de Control Semanal de Sitios BSS")
 st.write("Sincronización en tiempo real desde **Google Sheets**.")
 
-# 🔗 URL CSV pública de tu Google Sheet (Asegúrate de publicar la pestaña 'CONTROL' como CSV)
+# 🔗 URL pública CSV de tu Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv"
 
 # Cargar datos descartando caché automáticamente cada 60 segundos
@@ -28,14 +28,14 @@ if st.sidebar.button("Actualizar datos desde Google Sheets"):
 try:
     df = cargar_datos(SHEET_URL)
     
-    # Validar columnas principales del nuevo formato
+    # Validar columnas principales requeridas del archivo
     required_cols = {'Site Name', 'Proyecto', 'Region', 'SS IMP', 'Integracion', 'Estado Macro', 'Estado Insrv'}
     if not required_cols.issubset(df.columns):
         st.error(f"Faltan columnas requeridas en la hoja de Google Sheets. Se esperaban al menos: {required_cols}")
     else:
         df_proc = df.copy()
 
-        # Convertir Fechas (Integración y OnAir) a datetime
+        # Convertir Fechas a formato datetime
         df_proc['Fecha_Integracion_DT'] = pd.to_datetime(
             df_proc['Integracion'], 
             dayfirst=True, 
@@ -51,10 +51,10 @@ try:
         else:
             df_proc['Fecha_OnAir_DT'] = pd.NaT
 
-        # Fecha actual
+        # Fecha actual sin hora
         fecha_actual = pd.Timestamp.now().floor('d')
 
-        # Días desde Integración hasta hoy (para sitios no terminados/producción)
+        # Días transcurridos desde la fecha de Integración hasta hoy
         df_proc['Dias_Desde_Integracion'] = (fecha_actual - df_proc['Fecha_Integracion_DT']).dt.days
 
         # --- FILTROS DE LA BARRA LATERAL ---
@@ -101,10 +101,10 @@ try:
         # --- TARJETAS MÉTRICAS ---
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("Total Sitios", len(df_filtrado))
-        col2.metric("Producción", (df_filtrado['Estado Macro'] == "PRODUCCIÓN").sum())
-        col3.metric("Nokia NPO", (df_filtrado['Estado Macro'] == "NOKIA_NPO").sum())
-        col4.metric("Nokia NI", (df_filtrado['Estado Macro'] == "NOKIA_NI").sum())
-        col5.metric("Claro GI / Otros", len(df_filtrado) - (
+        col2.metric("PRODUCCIÓN", (df_filtrado['Estado Macro'] == "PRODUCCIÓN").sum())
+        col3.metric("NOKIA_NPO", (df_filtrado['Estado Macro'] == "NOKIA_NPO").sum())
+        col4.metric("NOKIA_NI", (df_filtrado['Estado Macro'] == "NOKIA_NI").sum())
+        col5.metric("Otros Estados", len(df_filtrado) - (
             (df_filtrado['Estado Macro'] == "PRODUCCIÓN").sum() +
             (df_filtrado['Estado Macro'] == "NOKIA_NPO").sum() +
             (df_filtrado['Estado Macro'] == "NOKIA_NI").sum()
@@ -112,19 +112,20 @@ try:
 
         st.markdown("---")
 
-        # --- PREPARACIÓN DE TABLA FINAL ---
+        # --- PREPARACIÓN DE LA TABLA PRINCIPAL ---
         df_display = df_filtrado.copy()
         
-        # Formatear la columna de días desde integración
+        # Formatear columna de días calculados
         df_display['Días Integ. a Hoy'] = df_display['Dias_Desde_Integracion'].apply(
             lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha"
         )
 
-        # Ordenar columnas preferidas al inicio
+        # Orden prioritario de columnas
         cols_ordenadas = [
-            'Site Name', 'Proyecto', 'Region', 'SS IMP', 
-            'Estado Macro', 'Estado Insrv', 'Sub Estado Insrv', 
-            'Integracion', 'OnAir', 'Días Integ. a Hoy', 'Comentario'
+            'Prioridad OnAir', 'SMP', 'Site Name', 'Territorio Comercial', 
+            'Proyecto', 'Region', 'SS IMP', 'ID RF Tool', 'Integracion', 
+            'W Integracion', 'OT OnAir', 'OnAir', 'W OnAir', 'Días Integ. a Hoy',
+            'Estado Macro', 'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
         ]
         
         cols_existentes = [c for c in cols_ordenadas if c in df_display.columns]
@@ -132,7 +133,7 @@ try:
         
         df_final = df_display[cols_existentes + otras_cols]
 
-        # Función de estilo para resaltar Estado Macro
+        # Estilo de color para la columna Estado Macro
         def colorear_estado_macro(val):
             if val == "PRODUCCIÓN":
                 return 'background-color: #d1e7dd; color: #0f5132; font-weight: bold;'
@@ -150,7 +151,7 @@ try:
         st.subheader(f"Lista de Sitios ({len(df_final)} mostrados)")
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-        # --- BOTÓN DE DESCARGA ---
+        # Botón de descarga en CSV
         csv = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Descargar Reporte en CSV",
