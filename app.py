@@ -165,8 +165,8 @@ try:
         # --- PREPARACIÓN DE LA TABLA PRINCIPAL ---
         df_display = df_filtrado.copy()
         
-        # Formatear columna de días calculados
-        df_display['Días Integ. a Hoy'] = df_display['Dias_Desde_Integracion'].apply(
+        # Columna explícita para Días Transcurridos
+        df_display['Días Transcurridos'] = df_display['Dias_Desde_Integracion'].apply(
             lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Integración"
         )
 
@@ -174,7 +174,7 @@ try:
         cols_ordenadas = [
             'Condición / Estado', 'Site Name', 'Territorio Comercial', 
             'Proyecto', 'Region', 'SS IMP', 'Integracion', 
-            'OnAir', 'Días Integ. a Hoy', 'Estado Macro', 
+            'OnAir', 'Días Transcurridos', 'Estado Macro', 
             'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
         ]
         
