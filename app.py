@@ -129,9 +129,9 @@ try:
         if proyecto_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Proyecto'] == proyecto_sel]
 
-        # 3. Filtro por Región (Territorio Comercial)
+        # 3. Filtro por Territorio Comercial
         territorios = ['Todos'] + sorted(list(df_filtrado['Territorio Comercial'].dropna().astype(str).unique()))
-        territorio_sel = st.sidebar.selectbox("Filtrar por Región (Territorio Comercial)", territorios)
+        territorio_sel = st.sidebar.selectbox("Filtrar por Territorio Comercial", territorios)
         if territorio_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Territorio Comercial'] == territorio_sel]
 
@@ -170,16 +170,16 @@ try:
             lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Integración"
         )
 
-        # Orden prioritario de columnas
+        # Orden prioritario de columnas (Sin 'Region' y con 'Días Transcurridos' después de 'Condición / Estado')
         cols_ordenadas = [
-            'Condición / Estado', 'Site Name', 'Territorio Comercial', 
-            'Proyecto', 'Region', 'SS IMP', 'Integracion', 
-            'OnAir', 'Días Transcurridos', 'Estado Macro', 
+            'Condición / Estado', 'Días Transcurridos', 'Site Name', 'Territorio Comercial', 
+            'Proyecto', 'SS IMP', 'Integracion', 
+            'OnAir', 'Estado Macro', 
             'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
         ]
         
         cols_existentes = [c for c in cols_ordenadas if c in df_display.columns]
-        otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Fecha_Integracion_DT', 'Fecha_OnAir_DT', 'Dias_Desde_Integracion', 'Prioridad']]
+        otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Region', 'Fecha_Integracion_DT', 'Fecha_OnAir_DT', 'Dias_Desde_Integracion', 'Prioridad']]
         
         df_final = df_display[cols_existentes + otras_cols]
 
