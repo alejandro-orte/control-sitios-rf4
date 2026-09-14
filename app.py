@@ -15,6 +15,31 @@ st.write("Sincronización en tiempo real desde **Google Sheets**.")
 # 🔗 URL pública CSV de tu Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv"
 
+# Estilos CSS personalizados para la leyenda de estados condicionales
+st.markdown("""
+<style>
+    .badge {
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: white;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .badge-red { background-color: #dc3545; }
+    .badge-yellow { background-color: #f39c12; }
+    .badge-green { background-color: #198754; }
+    .badge-gray { background-color: #6c757d; }
+</style>
+<div style="margin-bottom: 20px;">
+    <b>Leyenda de Condición (Sitios sin OnAir):</b> 
+    <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
+    <span class="badge badge-yellow">⚠️ Alerta (8 - 15 días)</span> 
+    <span class="badge badge-green">✅ En Norma (< 8 días)</span> 
+    <span class="badge badge-gray">⏳ Pendiente Integración</span>
+</div>
+""", unsafe_allow_html=True)
+
 # Cargar datos descartando caché automáticamente cada 60 segundos
 @st.cache_data(ttl=60)
 def cargar_datos(url):
@@ -54,44 +79,73 @@ try:
         # Fecha actual sin hora
         fecha_actual = pd.Timestamp.now().floor('d')
 
-        # Días transcurridos desde la fecha de Integración hasta hoy
+        # Días transcurridos desde la fecha de Integración
         df_proc['Dias_Desde_Integracion'] = (fecha_actual - df_proc['Fecha_Integracion_DT']).dt.days
+
+        # --- LÓGICA CONDICIONAL ---
+        def clasificar_condicion(row):
+            if pd.notna(row['Fecha_OnAir_DT']):
+                return "🎉 Completado / OnAir"
+            elif pd.isna(row['Fecha_Integracion_DT']):
+                return "⏳ Pendiente Integración"
+            elif row['Dias_Desde_Integracion'] >= 16:
+                return "🚨 Crítico (>= 16 días)"
+            elif row['Dias_Desde_Integracion'] >= 8:
+                return "⚠️ Alerta (8 - 15 días)"
+            elif row['Dias_Desde_Integracion'] >= 0:
+                return "✅ En Norma (< 8 días)"
+            else:
+                return "Fecha Futura / Error"
+
+        df_proc['Condición / Estado'] = df_proc.apply(clasificar_condicion, axis=1)
+
+        # Mapeo de prioridad para ordenamiento automático
+        prioridad_map = {
+            "🚨 Crítico (>= 16 días)": 1,
+            "⚠️ Alerta (8 - 15 días)": 2,
+            "✅ En Norma (< 8 días)": 3,
+            "⏳ Pendiente Integración": 4,
+            "🎉 Completado / OnAir": 5,
+            "Fecha Futura / Error": 6
+        }
+        df_proc['Prioridad'] = df_proc['Condición / Estado'].map(prioridad_map)
+        df_proc = df_proc.sort_values(by=['Prioridad', 'Dias_Desde_Integracion'], ascending=[True, False])
 
         # --- FILTROS DE LA BARRA LATERAL ---
         st.sidebar.markdown("---")
         st.sidebar.header("🔍 Filtros de Búsqueda")
 
-        # 1. Filtro por Proyecto
-        proyectos = ['Todos'] + sorted(list(df_proc['Proyecto'].dropna().astype(str).unique()))
-        proyecto_sel = st.sidebar.selectbox("Filtrar por Proyecto", proyectos)
+        # 1. Filtro por Condición / Estado Alerta
+        condiciones = ['Todos'] + sorted(list(df_proc['Condición / Estado'].dropna().astype(str).unique()))
+        condicion_sel = st.sidebar.selectbox("Filtrar por Condición / Alerta", condiciones)
 
         df_filtrado = df_proc.copy()
+        if condicion_sel != 'Todos':
+            df_filtrado = df_filtrado[df_filtrado['Condición / Estado'] == condicion_sel]
+
+        # 2. Filtro por Proyecto
+        proyectos = ['Todos'] + sorted(list(df_filtrado['Proyecto'].dropna().astype(str).unique()))
+        proyecto_sel = st.sidebar.selectbox("Filtrar por Proyecto", proyectos)
         if proyecto_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Proyecto'] == proyecto_sel]
 
-        # 2. Filtro por Región (Basado en la columna 'Territorio Comercial')
+        # 3. Filtro por Región (Territorio Comercial)
         territorios = ['Todos'] + sorted(list(df_filtrado['Territorio Comercial'].dropna().astype(str).unique()))
         territorio_sel = st.sidebar.selectbox("Filtrar por Región (Territorio Comercial)", territorios)
         if territorio_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Territorio Comercial'] == territorio_sel]
 
-        # 3. Filtro por Contratista (SS IMP)
+        # 4. Filtro por Contratista (SS IMP)
         contratistas = ['Todos'] + sorted(list(df_filtrado['SS IMP'].dropna().astype(str).unique()))
         contratista_sel = st.sidebar.selectbox("Filtrar por Contratista (SS IMP)", contratistas)
         if contratista_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['SS IMP'] == contratista_sel]
 
-        # 4. Filtro por Estado Macro
+        # 5. Filtro por Estado Macro
         estados_macro = ['Todos'] + sorted(list(df_filtrado['Estado Macro'].dropna().astype(str).unique()))
         estado_macro_sel = st.sidebar.selectbox("Filtrar por Estado Macro", estados_macro)
         if estado_macro_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Estado Macro'] == estado_macro_sel]
-
-        # 5. Filtro por Estado Insrv
-        estados_insrv = ['Todos'] + sorted(list(df_filtrado['Estado Insrv'].dropna().astype(str).unique()))
-        estado_insrv_sel = st.sidebar.selectbox("Filtrar por Estado Insrv", estados_insrv)
-        if estado_insrv_sel != 'Todos':
-            df_filtrado = df_filtrado[df_filtrado['Estado Insrv'] == estado_insrv_sel]
 
         # 6. Búsqueda por Nombre de Sitio
         busqueda = st.sidebar.text_input("Buscar por Sitio (Site Name)")
@@ -101,14 +155,10 @@ try:
         # --- TARJETAS MÉTRICAS ---
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("Total Sitios", len(df_filtrado))
-        col2.metric("PRODUCCIÓN", (df_filtrado['Estado Macro'] == "PRODUCCIÓN").sum())
-        col3.metric("NOKIA_NPO", (df_filtrado['Estado Macro'] == "NOKIA_NPO").sum())
-        col4.metric("NOKIA_NI", (df_filtrado['Estado Macro'] == "NOKIA_NI").sum())
-        col5.metric("Otros Estados", len(df_filtrado) - (
-            (df_filtrado['Estado Macro'] == "PRODUCCIÓN").sum() +
-            (df_filtrado['Estado Macro'] == "NOKIA_NPO").sum() +
-            (df_filtrado['Estado Macro'] == "NOKIA_NI").sum()
-        ))
+        col2.metric("🚨 Críticos (>=16d)", (df_filtrado['Condición / Estado'] == "🚨 Crítico (>= 16 días)").sum())
+        col3.metric("⚠️ Alerta (8-15d)", (df_filtrado['Condición / Estado'] == "⚠️ Alerta (8 - 15 días)").sum())
+        col4.metric("✅ En Norma (<8d)", (df_filtrado['Condición / Estado'] == "✅ En Norma (< 8 días)").sum())
+        col5.metric("🎉 OnAir / Completado", (df_filtrado['Condición / Estado'] == "🎉 Completado / OnAir").sum())
 
         st.markdown("---")
 
@@ -117,36 +167,38 @@ try:
         
         # Formatear columna de días calculados
         df_display['Días Integ. a Hoy'] = df_display['Dias_Desde_Integracion'].apply(
-            lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha"
+            lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Integración"
         )
 
         # Orden prioritario de columnas
         cols_ordenadas = [
-            'Prioridad OnAir', 'SMP', 'Site Name', 'Territorio Comercial', 
-            'Proyecto', 'Region', 'SS IMP', 'ID RF Tool', 'Integracion', 
-            'W Integracion', 'OT OnAir', 'OnAir', 'W OnAir', 'Días Integ. a Hoy',
-            'Estado Macro', 'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
+            'Condición / Estado', 'Site Name', 'Territorio Comercial', 
+            'Proyecto', 'Region', 'SS IMP', 'Integracion', 
+            'OnAir', 'Días Integ. a Hoy', 'Estado Macro', 
+            'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
         ]
         
         cols_existentes = [c for c in cols_ordenadas if c in df_display.columns]
-        otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Fecha_Integracion_DT', 'Fecha_OnAir_DT', 'Dias_Desde_Integracion']]
+        otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Fecha_Integracion_DT', 'Fecha_OnAir_DT', 'Dias_Desde_Integracion', 'Prioridad']]
         
         df_final = df_display[cols_existentes + otras_cols]
 
-        # Estilo de color para la columna Estado Macro
-        def colorear_estado_macro(val):
-            if val == "PRODUCCIÓN":
-                return 'background-color: #d1e7dd; color: #0f5132; font-weight: bold;'
-            elif val == "NOKIA_NPO":
-                return 'background-color: #fff3cd; color: #664d03; font-weight: bold;'
-            elif val == "NOKIA_NI":
+        # Estilo condicional para las celdas de 'Condición / Estado'
+        def colorear_condicion(val):
+            if val == "🚨 Crítico (>= 16 días)":
                 return 'background-color: #f8d7da; color: #842029; font-weight: bold;'
-            elif val == "CLARO_GI":
-                return 'background-color: #cff4fc; color: #055160; font-weight: bold;'
+            elif val == "⚠️ Alerta (8 - 15 días)":
+                return 'background-color: #fff3cd; color: #664d03; font-weight: bold;'
+            elif val == "✅ En Norma (< 8 días)":
+                return 'background-color: #d1e7dd; color: #0f5132; font-weight: bold;'
+            elif val == "⏳ Pendiente Integración":
+                return 'background-color: #e2e3e5; color: #41464b; font-weight: bold;'
+            elif val == "🎉 Completado / OnAir":
+                return 'background-color: #cff4fc; color: #055160;'
             else:
-                return 'background-color: #e2e3e5; color: #41464b;'
+                return ''
 
-        styled_df = df_final.style.map(colorear_estado_macro, subset=['Estado Macro'])
+        styled_df = df_final.style.map(colorear_condicion, subset=['Condición / Estado'])
 
         st.subheader(f"Lista de Sitios ({len(df_final)} mostrados)")
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
