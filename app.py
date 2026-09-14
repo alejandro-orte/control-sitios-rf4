@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("📡 Monitoreo de Sitios - Equipo RF 4 (Sin Fecha InSrv)")
-st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para mostrar **únicamente los sitios de Equipo RF = 4 que no cuentan con Fecha InSrv** y calcular los días transcurridos desde su **Fecha de Integración** hasta la fecha actual.")
+st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para mostrar **únicamente los sitios de Equipo RF = 4 que no cuentan con Fecha InSrv**, ordenados de **mayor a menor** según los días transcurridos desde su integración.")
 
 # Cargador de archivo
 uploaded_file = st.file_uploader("Cargar archivo de Plan BSS (.xls / .xlsx)", type=["xls", "xlsx"])
@@ -27,19 +27,19 @@ if uploaded_file is not None:
         # Validar columnas requeridas
         required_cols = {'Equipo RF', 'Sitio', 'Fecha Integracion', 'Fecha InSrv'}
         if not required_cols.issubset(df.columns):
-            st.error(f"El archivo debe contener al menos las siguientes columnas: {required_cols}")
+            st.error(f"El archivo debe contener las siguientes columnas: {required_cols}")
         else:
             # 1. Filtrar solo Equipo RF == 4
             df_rf4 = df[df['Equipo RF'] == 4].copy()
 
-            # 2. Filtrar únicamente sitios SIN Fecha InSrv (vacíos, NaN o cadenas vacías)
+            # 2. Filtrar únicamente sitios SIN Fecha InSrv
             df_rf4 = df_rf4[
                 df_rf4['Fecha InSrv'].isna() | 
                 (df_rf4['Fecha InSrv'].astype(str).str.strip() == '') | 
                 (df_rf4['Fecha InSrv'].astype(str).str.upper() == 'NAN')
             ]
 
-            # Convertir Fecha Integracion a formato fecha
+            # Convertir Fecha Integracion a formato datetime
             df_rf4['Fecha_Integracion_DT'] = pd.to_datetime(
                 df_rf4['Fecha Integracion'], 
                 format='%d/%m/%Y', 
@@ -49,10 +49,14 @@ if uploaded_file is not None:
             # Fecha actual
             fecha_actual = pd.Timestamp.now().floor('d')
 
-            # Calcular días transcurridos desde la integración a la fecha actual
+            # Calcular días transcurridos desde la integración
             df_rf4['Dias_Desde_Integracion'] = (fecha_actual - df_rf4['Fecha_Integracion_DT']).dt.days
 
-            # Tarjetas de métricas/resumen
+            # 3. ORDENAR DESCENDENTE POR DÍAS (de mayor a menor)
+            # Los sitios no integrados (NaN) se colocan al final
+            df_rf4 = df_rf4.sort_values(by='Dias_Desde_Integracion', ascending=False, na_position='last')
+
+            # Tarjetas de métricas
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Sitios RF 4 Sin InSrv", len(df_rf4))
             col2.metric("Integrados (Pendientes InSrv)", df_rf4['Fecha_Integracion_DT'].notna().sum())
@@ -86,20 +90,20 @@ if uploaded_file is not None:
             if busqueda:
                 df_rf4 = df_rf4[df_rf4['Sitio'].astype(str).str.contains(busqueda, case=False, na=False)]
 
-            # Formatear la columna calculada para presentación
+            # Formatear la columna para mostrar en la tabla
             df_display = df_rf4.copy()
             df_display['Días Desde Integración'] = df_display['Dias_Desde_Integracion'].apply(
                 lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Integrar"
             )
 
-            # Organizar columnas
+            # Organizar las columnas
             cols_prioritarias = ['Sitio', 'MasterPlan', 'Equipo RF', 'Fecha Integracion', 'Días Desde Integración', 'Fecha InSrv']
             cols_existentes = [c for c in cols_prioritarias if c in df_display.columns]
             otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Fecha_Integracion_DT', 'Dias_Desde_Integracion']]
             
             df_final = df_display[cols_existentes + otras_cols]
 
-            st.subheader("Tabla de Sitios (Sin Fecha InSrv)")
+            st.subheader("Tabla de Sitios (Ordenados por Mayor Tiempo Integrado)")
             st.dataframe(df_final, use_container_width=True, hide_index=True)
 
             # Descargar reporte
