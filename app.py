@@ -10,12 +10,12 @@ st.set_page_config(
 )
 
 st.title("📡 Tablero de Control Semanal de Sitios BSS")
-st.write("Sincronización en tiempo real desde **Google Sheets**.")
+st.write("Sincronización en tiempo real desde **Google Sheets** (Excluyendo sitios en **PRODUCCIÓN**).")
 
 # 🔗 URL pública CSV de tu Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv"
 
-# Estilos CSS personalizados para la leyenda de estados condicionales y contenedor horizontal
+# Estilos CSS personalizados para la leyenda de estados condicionales
 st.markdown("""
 <style>
     .badge {
@@ -59,6 +59,9 @@ try:
         st.error(f"Faltan columnas requeridas en la hoja de Google Sheets. Se esperaban al menos: {required_cols}")
     else:
         df_proc = df.copy()
+
+        # 🚫 EXCLUIR SITIOS EN PRODUCCIÓN
+        df_proc = df_proc[df_proc['Estado Macro'].astype(str).str.strip().str.upper() != 'PRODUCCIÓN']
 
         # Convertir Fechas a formato datetime
         df_proc['Fecha_Integracion_DT'] = pd.to_datetime(
@@ -154,7 +157,7 @@ try:
 
         # --- TARJETAS MÉTRICAS ---
         col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("Total Sitios", len(df_filtrado))
+        col1.metric("Total Sitios Pendientes", len(df_filtrado))
         col2.metric("🚨 Críticos (>=16d)", (df_filtrado['Condición / Estado'] == "🚨 Crítico (>= 16 días)").sum())
         col3.metric("⚠️ Alerta (8-15d)", (df_filtrado['Condición / Estado'] == "⚠️ Alerta (8 - 15 días)").sum())
         col4.metric("✅ En Norma (<8d)", (df_filtrado['Condición / Estado'] == "✅ En Norma (< 8 días)").sum())
@@ -200,9 +203,9 @@ try:
 
         styled_df = df_final.style.map(colorear_condicion, subset=['Condición / Estado'])
 
-        st.subheader(f"Lista de Sitios ({len(df_final)} mostrados)")
+        st.subheader(f"Lista de Sitios Pendientes ({len(df_final)} mostrados)")
         
-        # Configuración de anchos para garantizar el scroll horizontal y lectura cómoda
+        # Configuración de anchos para garantizar el scroll horizontal
         st.dataframe(
             styled_df, 
             use_container_width=True, 
@@ -221,7 +224,7 @@ try:
         st.download_button(
             label="📥 Descargar Reporte en CSV",
             data=csv,
-            file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
+            file_name=f"control_semanal_bss_pendientes_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
 
