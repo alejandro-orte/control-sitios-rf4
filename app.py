@@ -4,13 +4,13 @@ from datetime import datetime
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Control de Sitios - Equipo RF 4",
+    page_title="Control de Sitios Sin Fecha InSrv - Equipo RF 4",
     page_icon="📡",
     layout="wide"
 )
 
-st.title("📡 Monitoreo de Sitios - Equipo RF 4")
-st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para filtrar los sitios con **Equipo RF = 4** y calcular los días transcurridos desde su **Fecha de Integración** hasta la fecha actual.")
+st.title("📡 Monitoreo de Sitios - Equipo RF 4 (Sin Fecha InSrv)")
+st.write("Sube el archivo Excel/HTML (`PlanBSS*.xls`) para mostrar **únicamente los sitios de Equipo RF = 4 que no cuentan con Fecha InSrv** y calcular los días transcurridos desde su **Fecha de Integración** hasta la fecha actual.")
 
 # Cargador de archivo
 uploaded_file = st.file_uploader("Cargar archivo de Plan BSS (.xls / .xlsx)", type=["xls", "xlsx"])
@@ -24,15 +24,22 @@ if uploaded_file is not None:
         except Exception:
             df = pd.read_excel(uploaded_file)
 
-        # Validar columnas
-        required_cols = {'Equipo RF', 'Sitio', 'Fecha Integracion'}
+        # Validar columnas requeridas
+        required_cols = {'Equipo RF', 'Sitio', 'Fecha Integracion', 'Fecha InSrv'}
         if not required_cols.issubset(df.columns):
-            st.error(f"El archivo debe contener las siguientes columnas: {required_cols}")
+            st.error(f"El archivo debe contener al menos las siguientes columnas: {required_cols}")
         else:
-            # Filtrar por Equipo RF == 4
+            # 1. Filtrar solo Equipo RF == 4
             df_rf4 = df[df['Equipo RF'] == 4].copy()
 
-            # Convertir Fecha Integracion
+            # 2. Filtrar únicamente sitios SIN Fecha InSrv (vacíos, NaN o cadenas vacías)
+            df_rf4 = df_rf4[
+                df_rf4['Fecha InSrv'].isna() | 
+                (df_rf4['Fecha InSrv'].astype(str).str.strip() == '') | 
+                (df_rf4['Fecha InSrv'].astype(str).str.upper() == 'NAN')
+            ]
+
+            # Convertir Fecha Integracion a formato fecha
             df_rf4['Fecha_Integracion_DT'] = pd.to_datetime(
                 df_rf4['Fecha Integracion'], 
                 format='%d/%m/%Y', 
@@ -42,13 +49,13 @@ if uploaded_file is not None:
             # Fecha actual
             fecha_actual = pd.Timestamp.now().floor('d')
 
-            # Calcular días transcurridos
+            # Calcular días transcurridos desde la integración a la fecha actual
             df_rf4['Dias_Desde_Integracion'] = (fecha_actual - df_rf4['Fecha_Integracion_DT']).dt.days
 
-            # Tarjetas de resumen
+            # Tarjetas de métricas/resumen
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Total Sitios RF 4", len(df_rf4))
-            col2.metric("Sitios Integrados", df_rf4['Fecha_Integracion_DT'].notna().sum())
+            col1.metric("Sitios RF 4 Sin InSrv", len(df_rf4))
+            col2.metric("Integrados (Pendientes InSrv)", df_rf4['Fecha_Integracion_DT'].notna().sum())
             col3.metric("Pendientes Integración", df_rf4['Fecha_Integracion_DT'].isna().sum())
             
             promedio_dias = df_rf4['Dias_Desde_Integracion'].mean()
@@ -79,27 +86,28 @@ if uploaded_file is not None:
             if busqueda:
                 df_rf4 = df_rf4[df_rf4['Sitio'].astype(str).str.contains(busqueda, case=False, na=False)]
 
-            # Formatear la tabla
+            # Formatear la columna calculada para presentación
             df_display = df_rf4.copy()
             df_display['Días Desde Integración'] = df_display['Dias_Desde_Integracion'].apply(
                 lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Integrar"
             )
 
+            # Organizar columnas
             cols_prioritarias = ['Sitio', 'MasterPlan', 'Equipo RF', 'Fecha Integracion', 'Días Desde Integración', 'Fecha InSrv']
             cols_existentes = [c for c in cols_prioritarias if c in df_display.columns]
             otras_cols = [c for c in df_display.columns if c not in cols_existentes and c not in ['Fecha_Integracion_DT', 'Dias_Desde_Integracion']]
             
             df_final = df_display[cols_existentes + otras_cols]
 
-            st.subheader("Tabla de Sitios")
+            st.subheader("Tabla de Sitios (Sin Fecha InSrv)")
             st.dataframe(df_final, use_container_width=True, hide_index=True)
 
-            # Descargar CSV
+            # Descargar reporte
             csv = df_final.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Descargar Reporte en CSV",
                 data=csv,
-                file_name=f"sitios_rf4_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"sitios_rf4_sin_insrv_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
 
