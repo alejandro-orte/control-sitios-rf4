@@ -29,7 +29,7 @@ try:
     df = cargar_datos(SHEET_URL)
     
     # Validar columnas principales requeridas del archivo
-    required_cols = {'Site Name', 'Proyecto', 'Region', 'SS IMP', 'Integracion', 'Estado Macro', 'Estado Insrv'}
+    required_cols = {'Site Name', 'Proyecto', 'Territorio Comercial', 'SS IMP', 'Integracion', 'Estado Macro', 'Estado Insrv'}
     if not required_cols.issubset(df.columns):
         st.error(f"Faltan columnas requeridas en la hoja de Google Sheets. Se esperaban al menos: {required_cols}")
     else:
@@ -69,11 +69,11 @@ try:
         if proyecto_sel != 'Todos':
             df_filtrado = df_filtrado[df_filtrado['Proyecto'] == proyecto_sel]
 
-        # 2. Filtro por Región
-        regiones = ['Todos'] + sorted(list(df_filtrado['Region'].dropna().astype(str).unique()))
-        region_sel = st.sidebar.selectbox("Filtrar por Región", regiones)
-        if region_sel != 'Todos':
-            df_filtrado = df_filtrado[df_filtrado['Region'] == region_sel]
+        # 2. Filtro por Región (Basado en la columna 'Territorio Comercial')
+        territorios = ['Todos'] + sorted(list(df_filtrado['Territorio Comercial'].dropna().astype(str).unique()))
+        territorio_sel = st.sidebar.selectbox("Filtrar por Región (Territorio Comercial)", territorios)
+        if territorio_sel != 'Todos':
+            df_filtrado = df_filtrado[df_filtrado['Territorio Comercial'] == territorio_sel]
 
         # 3. Filtro por Contratista (SS IMP)
         contratistas = ['Todos'] + sorted(list(df_filtrado['SS IMP'].dropna().astype(str).unique()))
