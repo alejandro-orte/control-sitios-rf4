@@ -173,12 +173,12 @@ try:
             lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Integración"
         )
 
-        # Orden prioritario de columnas
+        # Orden prioritario de columnas (Proyecto y SS IMP movidas al final)
         cols_ordenadas = [
             'Condición / Estado', 'Días Transcurridos', 'Site Name', 'Territorio Comercial', 
-            'Proyecto', 'SS IMP', 'Integracion', 
-            'OnAir', 'Estado Macro', 
-            'Estado Insrv', 'Sub Estado Insrv', 'Comentario'
+            'Integracion', 'OnAir', 'Estado Macro', 
+            'Estado Insrv', 'Sub Estado Insrv', 'Comentario',
+            'Proyecto', 'SS IMP'
         ]
         
         cols_existentes = [c for c in cols_ordenadas if c in df_display.columns]
@@ -205,7 +205,7 @@ try:
 
         st.subheader(f"Lista de Sitios Pendientes ({len(df_final)} mostrados)")
         
-        # Configuración de anchos para garantizar el scroll horizontal
+        # Configuración de anchos para la visualización tabular
         st.dataframe(
             styled_df, 
             use_container_width=True, 
@@ -216,6 +216,8 @@ try:
                 "Site Name": st.column_config.TextColumn("Site Name", width="medium"),
                 "Territorio Comercial": st.column_config.TextColumn("Territorio Comercial", width="medium"),
                 "Comentario": st.column_config.TextColumn("Comentario", width="large"),
+                "Proyecto": st.column_config.TextColumn("Proyecto", width="medium"),
+                "SS IMP": st.column_config.TextColumn("SS IMP", width="medium"),
             }
         )
 
