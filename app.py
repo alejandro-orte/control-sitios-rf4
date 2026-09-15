@@ -442,7 +442,7 @@ with tab_rechazados:
           "sitio b",
           "tecnologia",
           "escenario modernizacion",
-           "turno_performance",
+           "Turno_Performance",
           
       ]
 
