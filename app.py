@@ -201,7 +201,10 @@ try:
             file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
-
+import streamlit as st
+import pandas as pd
+import re
+from datetime import datetime
 
 # ==========================================
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
@@ -238,7 +241,6 @@ with tab_rechazados:
                 df_rechazados = df_umbrella.copy()
 
             # --- 2. FILTRADO Y CONSERVACIÓN DE COLUMNAS (EXCEPCIÓN PARA Flujo_UUID) ---
-            # Si deseas descartar columnas específicas, agrégalas aquí. De lo contrario, Flujo_UUID está 100% protegida.
             terminos_a_eliminar = [
                 'secuencial', 'nombre flujo', 'id sitio', 'idsitio',
                 'imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto', 'url', 'link'
@@ -346,6 +348,11 @@ with tab_rechazados:
                 )
             else:
                 st.info("No se encontraron registros rechazados del año 2026 que coincidan con la búsqueda.")
+
+        except Exception as e_umb:
+            st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
+
+
 
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
