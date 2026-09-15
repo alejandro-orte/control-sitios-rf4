@@ -201,11 +201,6 @@ try:
             file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
-import streamlit as st
-import pandas as pd
-import re
-from datetime import datetime
-
 # ==========================================
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
