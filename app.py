@@ -199,8 +199,7 @@ try:
             file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
-
-    # ==========================================
+# ==========================================
     # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
     # ==========================================
     with tab_rechazados:
@@ -212,6 +211,33 @@ try:
             try:
                 df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
+                # Columnas a Ocultar / Eliminar
+                cols_a_ocultar = [
+                    'id secuencial', 'id_secuencial',
+                    'nombre flujo', 'nombre_flujo',
+                    'id sitio', 'id_sitio',
+                    'solicitante',
+                    'zona comercial', 'zona_comercial',
+                    'turno performance', 'turno_performance',
+                    'lider oym', 'lider_oym', 'líder oym',
+                    'site owner', 'site_owner',
+                    'owner soporte zona', 'owner_soporte_zona',
+                    'sistema de energia instalar', 'sistema_de_energia_instalar', 'sistemade energia instalar',
+                    'tipo de actividad', 'tipo_de_actividad',
+                    'odh',
+                    'proyecto',
+                    'smp'
+                ]
+
+                # Filtrar y descartar las columnas solicitadas
+                cols_para_drop = [
+                    c for c in df_umbrella.columns 
+                    if str(c).strip().lower().replace('_', ' ') in [x.replace('_', ' ') for x in cols_a_ocultar]
+                ]
+
+                df_umbrella_clean = df_umbrella.drop(columns=cols_para_drop, errors='ignore')
+
+                # Estados rechazados
                 estados_rechazados = [
                     "Rechazado 1 NOC", 
                     "Rechazado 1 RF", 
@@ -221,19 +247,16 @@ try:
 
                 # Buscar la columna que contiene el estado
                 col_estado = None
-                for col in df_umbrella.columns:
+                for col in df_umbrella_clean.columns:
                     if any(term in str(col).lower() for term in ['estado', 'sub_estado', 'subestado', 'condicion', 'status']):
                         col_estado = col
                         break
 
                 if col_estado:
-                    # Filtrar por los 4 tipos de rechazo
-                    mask_rechazados = df_umbrella[col_estado].astype(str).str.strip().isin(estados_rechazados)
-                    df_rechazados = df_umbrella[mask_rechazados].copy()
+                    mask_rechazados = df_umbrella_clean[col_estado].astype(str).str.strip().isin(estados_rechazados)
+                    df_rechazados = df_umbrella_clean[mask_rechazados].copy()
                 else:
-                    # Si no encuentra columna específica de estado, muestra todo el dataset de umbrella
-                    df_rechazados = df_umbrella.copy()
-                    st.info("Mostrando todos los registros de la pestaña umbrella.")
+                    df_rechazados = df_umbrella_clean.copy()
 
                 st.metric(label="Total Registros Filtrados en Umbrella", value=len(df_rechazados))
 
@@ -256,6 +279,7 @@ try:
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
+ 
 
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
