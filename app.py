@@ -199,7 +199,6 @@ try:
             file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
-
 # ==========================================
     # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
     # ==========================================
@@ -234,34 +233,19 @@ try:
                 else:
                     df_rechazados = df_umbrella.copy()
 
-                # --- 2. OCULTAR COLUMNAS SOLICITADAS E IMÁGENES ---
-                cols_a_eliminar = [
-                    'id secuencial', 'id_secuencial',
-                    'nombre flujo', 'nombre_flujo',
-                    'id sitio', 'id_sitio',
-                    'solicitante',
-                    'zona comercial', 'zona_comercial',
-                    'turno performance', 'turno_performance',
-                    'lider oym', 'lider_oym', 'líder oym',
-                    'site owner', 'site_owner',
-                    'owner soporte zona', 'owner_soporte_zona',
-                    'sistema de energia instalar', 'sistema_de_energia_instalar', 'sistemade energia instalar',
-                    'tipo de actividad', 'tipo_de_actividad',
-                    'odh', 'proyecto', 'smp'
+                # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS E IMÁGENES ---
+                terminos_a_eliminar = [
+                    'secuencial', 'flujo', 'id sitio', 'idsitio', 'solicitante', 
+                    'comercial', 'performance', 'oym', 'site owner', 'owner', 
+                    'energia', 'actividad', 'odh', 'proyecto', 'smp',
+                    'imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto', 'url', 'link'
                 ]
 
-                # Filtrar columnas
                 cols_para_drop = []
+                import re
                 for col in df_rechazados.columns:
-                    col_norm = str(col).strip().lower().replace('_', ' ')
-                    
-                    # Eliminar si coincide con la lista de columnas no deseadas
-                    coincide_ocultar = any(x.replace('_', ' ') == col_norm for x in cols_a_eliminar)
-                    
-                    # Eliminar si es columna de imagen / adjunto
-                    coincide_imagen = any(kw in col_norm for kw in ['imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto'])
-                    
-                    if coincide_ocultar or coincide_imagen:
+                    col_limpia = re.sub(r'[\s_]+', ' ', str(col)).strip().lower()
+                    if any(term in col_limpia for term in terminos_a_eliminar):
                         cols_para_drop.append(col)
 
                 df_rechazados_clean = df_rechazados.drop(columns=cols_para_drop, errors='ignore').copy()
@@ -269,7 +253,8 @@ try:
                 # --- 3. CORRECCIÓN Y FILTRADO POR AÑO 2026 EN FECHA_ESTADO ---
                 col_fecha_estado = None
                 for col in df_rechazados_clean.columns:
-                    if str(col).strip().lower().replace('_', ' ') in ['fecha estado', 'fecha_estado']:
+                    col_limpia = str(col).strip().lower().replace('_', ' ')
+                    if 'fecha estado' in col_limpia:
                         col_fecha_estado = col
                         break
 
@@ -304,11 +289,21 @@ try:
                             df_rechazados_clean[col_sitio].astype(str).str.contains(search_query.strip(), case=False, na=False)
                         ]
                     else:
-                        # Si no encuentra columna específica de sitio, busca en todas las columnas de texto
                         mask = df_rechazados_clean.astype(str).apply(
                             lambda row: row.str.contains(search_query.strip(), case=False, na=False)
                         ).any(axis=1)
                         df_rechazados_clean = df_rechazados_clean[mask]
+
+                # --- 6. REORDENAR: COLOCAR 'ESTADO' AL LADO DE 'SITIO' ---
+                if col_sitio and col_estado and col_sitio in df_rechazados_clean.columns and col_estado in df_rechazados_clean.columns:
+                    cols = list(df_rechazados_clean.columns)
+                    # Quitar col_estado de su posición actual
+                    cols.remove(col_estado)
+                    # Encontrar el índice de la columna del sitio e insertar 'Estado' inmediatamente después
+                    idx_sitio = cols.index(col_sitio)
+                    cols.insert(idx_sitio + 1, col_estado)
+                    # Reorganizar el DataFrame con el nuevo orden de columnas
+                    df_rechazados_clean = df_rechazados_clean[cols]
 
                 st.metric(label="Total Registros Filtrados en Umbrella (2026)", value=len(df_rechazados_clean))
 
@@ -331,5 +326,6 @@ try:
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
+
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
