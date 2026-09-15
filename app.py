@@ -199,11 +199,12 @@ try:
             file_name=f"control_semanal_bss_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+
 # ==========================================
     # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
     # ==========================================
     with tab_rechazados:
-        st.header("🚫 Registro de Sitios Rechazados desde la pestaña Umbrella")
+        st.header("🚫 Registro de Sitios Rechazados desde la pestaña Umbrella (Año 2026)")
         
         if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
             st.warning("⚠️ Debes publicar la pestaña 'umbrella' en Google Sheets como CSV y pegar la URL en la variable `SHEET_URL_UMBRELLA`.")
@@ -233,38 +234,59 @@ try:
                 else:
                     df_rechazados = df_umbrella.copy()
 
-                # --- 2. FILTRADO / REMOCIÓN DE COLUMNAS NO DESEADAS E IMÁGENES ---
-                # Lista de textos/palabras que identifican columnas a eliminar
-                palabras_a_eliminar = [
-                    'id_secuencial', 'id secuencial',
-                    'nombre_flujo', 'nombre flujo',
-                    'id_sitio', 'id sitio',
+                # --- 2. OCULTAR COLUMNAS SOLICITADAS E IMÁGENES ---
+                cols_a_eliminar = [
+                    'id secuencial', 'id_secuencial',
+                    'nombre flujo', 'nombre_flujo',
+                    'id sitio', 'id_sitio',
                     'solicitante',
-                    'zona_comercial', 'zona comercial',
-                    'turno_performance', 'turno performance',
-                    'lider_oym', 'lider oym', 'líder oym',
-                    'site_owner', 'site owner',
-                    'owner_soporte_zona', 'owner soporte zona',
-                    'sistema_de_energia_instalar', 'sistemade energia instalar', 'sistema de energia instalar',
-                    'tipo_de_actividad', 'tipo de actividad',
-                    'odh', 'proyecto', 'smp',
-                    # Palabras clave de imágenes / adjuntos
-                    'imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto', 'url', 'link'
+                    'zona comercial', 'zona_comercial',
+                    'turno performance', 'turno_performance',
+                    'lider oym', 'lider_oym', 'líder oym',
+                    'site owner', 'site_owner',
+                    'owner soporte zona', 'owner_soporte_zona',
+                    'sistema de energia instalar', 'sistema_de_energia_instalar', 'sistemade energia instalar',
+                    'tipo de actividad', 'tipo_de_actividad',
+                    'odh', 'proyecto', 'smp'
                 ]
 
-                # Normalización para comparar nombres de columnas
-                cols_a_eliminar = []
+                # Filtrar columnas
+                cols_para_drop = []
                 for col in df_rechazados.columns:
                     col_norm = str(col).strip().lower().replace('_', ' ')
-                    # Si coincide exactamente con la lista o contiene términos de imagen
-                    if any(p.replace('_', ' ') == col_norm for p in palabras_a_eliminar) or \
-                       any(img_kw in col_norm for img_kw in ['imagen', 'foto', 'photo', 'img', 'evidencia']):
-                        cols_a_eliminar.append(col)
+                    
+                    # Eliminar si coincide con la lista de columnas no deseadas
+                    coincide_ocultar = any(x.replace('_', ' ') == col_norm for x in cols_a_eliminar)
+                    
+                    # Eliminar si es columna de imagen / adjunto
+                    coincide_imagen = any(kw in col_norm for kw in ['imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto'])
+                    
+                    if coincide_ocultar or coincide_imagen:
+                        cols_para_drop.append(col)
 
-                # Eliminar las columnas encontradas
-                df_rechazados_clean = df_rechazados.drop(columns=cols_a_eliminar, errors='ignore')
+                df_rechazados_clean = df_rechazados.drop(columns=cols_para_drop, errors='ignore').copy()
 
-                st.metric(label="Total Registros Filtrados en Umbrella", value=len(df_rechazados_clean))
+                # --- 3. CORRECCIÓN Y FILTRADO POR AÑO 2026 EN FECHA_ESTADO ---
+                col_fecha_estado = None
+                for col in df_rechazados_clean.columns:
+                    if str(col).strip().lower().replace('_', ' ') in ['fecha estado', 'fecha_estado']:
+                        col_fecha_estado = col
+                        break
+
+                if col_fecha_estado:
+                    # Convertir a datetime para poder extraer el año
+                    fechas_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], errors='coerce', dayfirst=True)
+                    # Filtrar únicamente los del año 2026
+                    df_rechazados_clean = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
+
+                # --- 4. FORMATO DE TODAS LAS COLUMNAS DE FECHA (# # # # # # # # # #) ---
+                for col in df_rechazados_clean.columns:
+                    if 'fecha' in str(col).lower():
+                        fecha_parsed = pd.to_datetime(df_rechazados_clean[col], errors='coerce', dayfirst=True)
+                        df_rechazados_clean[col] = fecha_parsed.dt.strftime('%Y-%m-%d').fillna(df_rechazados_clean[col].astype(str))
+                        df_rechazados_clean[col] = df_rechazados_clean[col].replace({'nan': '', 'None': '', '<NaT>': ''})
+
+                st.metric(label="Total Registros Filtrados en Umbrella (2026)", value=len(df_rechazados_clean))
 
                 if not df_rechazados_clean.empty:
                     st.dataframe(
@@ -275,16 +297,15 @@ try:
 
                     csv_umbrella = df_rechazados_clean.to_csv(index=False).encode('utf-8')
                     st.download_button(
-                        label="📥 Descargar Reporte Umbrella (CSV)",
+                        label="📥 Descargar Reporte Umbrella 2026 (CSV)",
                         data=csv_umbrella,
-                        file_name=f"sitios_rechazados_umbrella_{datetime.now().strftime('%Y%m%d')}.csv",
+                        file_name=f"sitios_rechazados_umbrella_2026_{datetime.now().strftime('%Y%m%d')}.csv",
                         mime="text/csv"
                     )
                 else:
-                    st.info("No se encontraron registros rechazados en la pestaña umbrella con los criterios especificados.")
+                    st.info("No se encontraron registros rechazados del año 2026 en la pestaña umbrella.")
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
-
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
