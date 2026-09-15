@@ -20,7 +20,7 @@ SHEET_URL_GENERAL = st.secrets.get(
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv",
 )
 SHEET_URL_UMBRELLA = st.secrets.get(
-    "SHEET_URL_UMBRELLA", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv"
+    "SHEET_URL_UMBRELLA", "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA"
 )
 
 
@@ -412,7 +412,7 @@ with tab_rechazados:
         df_rechazados = df_umbrella.copy()
 
       # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS ---
-      # Lista extendida con todas las columnas a descartar
+      # Lista actualizada con todas las columnas a descartar
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -442,8 +442,14 @@ with tab_rechazados:
           "sitio b",
           "tecnologia",
           "escenario modernizacion",
-           "Turno_Performance",
-          
+          "truno performance",
+          "turno performance",
+          "metodo recepcion",
+          "causal de rechazo",
+          "observaciones",
+          "observaciones revision",
+          "operacion planta electrica",
+          "responsable estado",
       ]
 
       cols_para_drop = []
