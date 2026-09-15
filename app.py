@@ -442,6 +442,8 @@ with tab_rechazados:
           "sitio b",
           "tecnologia",
           "escenario modernizacion",
+           "turno_performance",
+          
       ]
 
       cols_para_drop = []
