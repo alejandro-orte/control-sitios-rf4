@@ -16,7 +16,7 @@ st.write("Sincronización en tiempo real desde **Google Sheets**.")
 SHEET_URL_MAIN = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv"
 
 # 🔗 REEMPLAZA ESTA URL por la URL pública CSV generada al publicar la pestaña 'umbrella'
-SHEET_URL_UMBRELLA = "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA"
+SHEET_URL_UMBRELLA = "https://docs.google.com/spreadsheets/d/1_WrHR5is_YzlX9DcS7rqwOe9a6kobV1amlo4JhtBfpY/edit?usp=sharing"
 
 # Cargar datos descartando caché automáticamente cada 60 segundos
 @st.cache_data(ttl=60)
