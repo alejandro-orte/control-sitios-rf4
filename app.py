@@ -274,9 +274,7 @@ try:
                         break
 
                 if col_fecha_estado:
-                    # Convertir a datetime para poder extraer el año
                     fechas_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], errors='coerce', dayfirst=True)
-                    # Filtrar únicamente los del año 2026
                     df_rechazados_clean = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
 
                 # --- 4. FORMATO DE TODAS LAS COLUMNAS DE FECHA (# # # # # # # # # #) ---
@@ -285,6 +283,32 @@ try:
                         fecha_parsed = pd.to_datetime(df_rechazados_clean[col], errors='coerce', dayfirst=True)
                         df_rechazados_clean[col] = fecha_parsed.dt.strftime('%Y-%m-%d').fillna(df_rechazados_clean[col].astype(str))
                         df_rechazados_clean[col] = df_rechazados_clean[col].replace({'nan': '', 'None': '', '<NaT>': ''})
+
+                # --- 5. BUSCADOR POR NOMBRE DEL SITIO ---
+                col_sitio = None
+                for col in df_rechazados_clean.columns:
+                    col_norm = str(col).strip().lower().replace('_', ' ')
+                    if col_norm in ['sitio b', 'sitio_b', 'sitio', 'nombre sitio', 'nombre_sitio']:
+                        col_sitio = col
+                        break
+
+                search_query = st.text_input(
+                    "🔍 **Buscar por Nombre de Sitio:**",
+                    placeholder="Escribe el nombre o código del sitio...",
+                    key="search_sitio_umbrella"
+                )
+
+                if search_query.strip():
+                    if col_sitio:
+                        df_rechazados_clean = df_rechazados_clean[
+                            df_rechazados_clean[col_sitio].astype(str).str.contains(search_query.strip(), case=False, na=False)
+                        ]
+                    else:
+                        # Si no encuentra columna específica de sitio, busca en todas las columnas de texto
+                        mask = df_rechazados_clean.astype(str).apply(
+                            lambda row: row.str.contains(search_query.strip(), case=False, na=False)
+                        ).any(axis=1)
+                        df_rechazados_clean = df_rechazados_clean[mask]
 
                 st.metric(label="Total Registros Filtrados en Umbrella (2026)", value=len(df_rechazados_clean))
 
@@ -303,7 +327,7 @@ try:
                         mime="text/csv"
                     )
                 else:
-                    st.info("No se encontraron registros rechazados del año 2026 en la pestaña umbrella.")
+                    st.info("No se encontraron registros rechazados del año 2026 que coincidan con la búsqueda.")
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
