@@ -291,9 +291,6 @@ try:
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
-
-            except Exception as e_umb:
-                st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
  
 
 except Exception as e:
