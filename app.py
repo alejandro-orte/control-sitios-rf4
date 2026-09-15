@@ -347,8 +347,5 @@ with tab_rechazados:
             else:
                 st.info("No se encontraron registros rechazados del año 2026 que coincidan con la búsqueda.")
 
-        except Exception as e_umb:
-            st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
-
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
