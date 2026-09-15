@@ -20,7 +20,7 @@ SHEET_URL_GENERAL = st.secrets.get(
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv",
 )
 SHEET_URL_UMBRELLA = st.secrets.get(
-    "SHEET_URL_UMBRELLA", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv"
+    "SHEET_URL_UMBRELLA", "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA"
 )
 
 
@@ -412,7 +412,7 @@ with tab_rechazados:
         df_rechazados = df_umbrella.copy()
 
       # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS ---
-      # Se agregan 'id' y 'solicitante' a los términos de eliminación
+      # Lista extendida con todas las columnas a descartar
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -429,6 +429,19 @@ with tab_rechazados:
           "link",
           "id",
           "solicitante",
+          "zona comercial",
+          "regional",
+          "diseñador",
+          "site owner",
+          "owner soporte zona",
+          "sistema de energia instalar",
+          "odh",
+          "proyecto",
+          "smp",
+          "wo",
+          "sitio b",
+          "tecnologia",
+          "escenario modernizacion",
       ]
 
       cols_para_drop = []
@@ -440,7 +453,10 @@ with tab_rechazados:
         if col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]:
           continue
 
-        if any(term == col_limpia or term in col_limpia for term in terminos_a_eliminar):
+        if any(
+            term == col_limpia or term in col_limpia
+            for term in terminos_a_eliminar
+        ):
           cols_para_drop.append(col)
 
       df_rechazados_clean = df_rechazados.drop(
