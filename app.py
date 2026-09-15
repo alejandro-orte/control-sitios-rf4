@@ -21,7 +21,12 @@ SHEET_URL_UMBRELLA = "https://docs.google.com/spreadsheets/d/1_WrHR5is_YzlX9DcS7
 # Cargar datos descartando caché automáticamente cada 60 segundos
 @st.cache_data(ttl=60)
 def cargar_datos(url):
-    return pd.read_csv(url)
+    try:
+        # Intento estándar de lectura
+        return pd.read_csv(url)
+    except Exception:
+        # Si falla por inconsistencia en número de columnas (comas/saltos de línea)
+        return pd.read_csv(url, on_bad_lines='skip', engine='python')
 
 # Botón manual de sincronización en la barra lateral
 st.sidebar.header("🔄 Sincronización")
