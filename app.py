@@ -211,7 +211,7 @@ try:
             try:
                 df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-                # Columnas a Ocultar / Eliminar
+                # 1. Lista explícita de columnas a ocultar
                 cols_a_ocultar = [
                     'id secuencial', 'id_secuencial',
                     'nombre flujo', 'nombre_flujo',
@@ -229,12 +229,24 @@ try:
                     'smp'
                 ]
 
-                # Filtrar y descartar las columnas solicitadas
-                cols_para_drop = [
-                    c for c in df_umbrella.columns 
-                    if str(c).strip().lower().replace('_', ' ') in [x.replace('_', ' ') for x in cols_a_ocultar]
-                ]
+                # 2. Palabras clave para detectar y eliminar automáticamente columnas de imágenes/fotos
+                keywords_imagenes = ['imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto']
 
+                # Identificar columnas a descartar (por nombre exacto o por coincidencia con palabras clave de imagen)
+                cols_para_drop = []
+                for col in df_umbrella.columns:
+                    col_str = str(col).strip().lower().replace('_', ' ')
+                    
+                    # Verificar si coincide con la lista explícita
+                    es_col_ocultar = col_str in [x.replace('_', ' ') for x in cols_a_ocultar]
+                    
+                    # Verificar si es una columna de imagen
+                    es_col_imagen = any(kw in col_str for kw in keywords_imagenes)
+
+                    if es_col_ocultar or es_col_imagen:
+                        cols_para_drop.append(col)
+
+                # Descartar las columnas
                 df_umbrella_clean = df_umbrella.drop(columns=cols_para_drop, errors='ignore')
 
                 # Estados rechazados
@@ -276,6 +288,9 @@ try:
                     )
                 else:
                     st.info("No se encontraron registros rechazados en la pestaña umbrella con los criterios especificados.")
+
+            except Exception as e_umb:
+                st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
