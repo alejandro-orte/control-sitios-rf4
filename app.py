@@ -211,45 +211,7 @@ try:
             try:
                 df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-                # 1. Lista explícita de columnas a ocultar
-                cols_a_ocultar = [
-                    'id secuencial', 'id_secuencial',
-                    'nombre flujo', 'nombre_flujo',
-                    'id sitio', 'id_sitio',
-                    'solicitante',
-                    'zona comercial', 'zona_comercial',
-                    'turno performance', 'turno_performance',
-                    'lider oym', 'lider_oym', 'líder oym',
-                    'site owner', 'site_owner',
-                    'owner soporte zona', 'owner_soporte_zona',
-                    'sistema de energia instalar', 'sistema_de_energia_instalar', 'sistemade energia instalar',
-                    'tipo de actividad', 'tipo_de_actividad',
-                    'odh',
-                    'proyecto',
-                    'smp'
-                ]
-
-                # 2. Palabras clave para detectar y eliminar automáticamente columnas de imágenes/fotos
-                keywords_imagenes = ['imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto']
-
-                # Identificar columnas a descartar (por nombre exacto o por coincidencia con palabras clave de imagen)
-                cols_para_drop = []
-                for col in df_umbrella.columns:
-                    col_str = str(col).strip().lower().replace('_', ' ')
-                    
-                    # Verificar si coincide con la lista explícita
-                    es_col_ocultar = col_str in [x.replace('_', ' ') for x in cols_a_ocultar]
-                    
-                    # Verificar si es una columna de imagen
-                    es_col_imagen = any(kw in col_str for kw in keywords_imagenes)
-
-                    if es_col_ocultar or es_col_imagen:
-                        cols_para_drop.append(col)
-
-                # Descartar las columnas
-                df_umbrella_clean = df_umbrella.drop(columns=cols_para_drop, errors='ignore')
-
-                # Estados rechazados
+                # --- 1. FILTRADO DE FILAS RECHAZADAS ---
                 estados_rechazados = [
                     "Rechazado 1 NOC", 
                     "Rechazado 1 RF", 
@@ -259,27 +221,59 @@ try:
 
                 # Buscar la columna que contiene el estado
                 col_estado = None
-                for col in df_umbrella_clean.columns:
-                    if any(term in str(col).lower() for term in ['estado', 'sub_estado', 'subestado', 'condicion', 'status']):
+                for col in df_umbrella.columns:
+                    col_clean = str(col).strip().lower().replace('_', ' ')
+                    if col_clean in ['estado', 'sub estado', 'subestado', 'condicion', 'status', 'estado insrv']:
                         col_estado = col
                         break
 
                 if col_estado:
-                    mask_rechazados = df_umbrella_clean[col_estado].astype(str).str.strip().isin(estados_rechazados)
-                    df_rechazados = df_umbrella_clean[mask_rechazados].copy()
+                    mask_rechazados = df_umbrella[col_estado].astype(str).str.strip().isin(estados_rechazados)
+                    df_rechazados = df_umbrella[mask_rechazados].copy()
                 else:
-                    df_rechazados = df_umbrella_clean.copy()
+                    df_rechazados = df_umbrella.copy()
 
-                st.metric(label="Total Registros Filtrados en Umbrella", value=len(df_rechazados))
+                # --- 2. FILTRADO / REMOCIÓN DE COLUMNAS NO DESEADAS E IMÁGENES ---
+                # Lista de textos/palabras que identifican columnas a eliminar
+                palabras_a_eliminar = [
+                    'id_secuencial', 'id secuencial',
+                    'nombre_flujo', 'nombre flujo',
+                    'id_sitio', 'id sitio',
+                    'solicitante',
+                    'zona_comercial', 'zona comercial',
+                    'turno_performance', 'turno performance',
+                    'lider_oym', 'lider oym', 'líder oym',
+                    'site_owner', 'site owner',
+                    'owner_soporte_zona', 'owner soporte zona',
+                    'sistema_de_energia_instalar', 'sistemade energia instalar', 'sistema de energia instalar',
+                    'tipo_de_actividad', 'tipo de actividad',
+                    'odh', 'proyecto', 'smp',
+                    # Palabras clave de imágenes / adjuntos
+                    'imagen', 'foto', 'photo', 'img', 'evidencia', 'pic', 'adjunto', 'url', 'link'
+                ]
 
-                if not df_rechazados.empty:
+                # Normalización para comparar nombres de columnas
+                cols_a_eliminar = []
+                for col in df_rechazados.columns:
+                    col_norm = str(col).strip().lower().replace('_', ' ')
+                    # Si coincide exactamente con la lista o contiene términos de imagen
+                    if any(p.replace('_', ' ') == col_norm for p in palabras_a_eliminar) or \
+                       any(img_kw in col_norm for img_kw in ['imagen', 'foto', 'photo', 'img', 'evidencia']):
+                        cols_a_eliminar.append(col)
+
+                # Eliminar las columnas encontradas
+                df_rechazados_clean = df_rechazados.drop(columns=cols_a_eliminar, errors='ignore')
+
+                st.metric(label="Total Registros Filtrados en Umbrella", value=len(df_rechazados_clean))
+
+                if not df_rechazados_clean.empty:
                     st.dataframe(
-                        df_rechazados,
+                        df_rechazados_clean,
                         use_container_width=True,
                         hide_index=True
                     )
 
-                    csv_umbrella = df_rechazados.to_csv(index=False).encode('utf-8')
+                    csv_umbrella = df_rechazados_clean.to_csv(index=False).encode('utf-8')
                     st.download_button(
                         label="📥 Descargar Reporte Umbrella (CSV)",
                         data=csv_umbrella,
@@ -291,7 +285,6 @@ try:
 
             except Exception as e_umb:
                 st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
- 
 
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
