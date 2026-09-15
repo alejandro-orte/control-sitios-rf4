@@ -15,13 +15,12 @@ st.title("📡 Tablero de Control de Sitios BSS")
 # ==========================================
 # CONFIGURACIÓN DE URLS DE GOOGLE SHEETS
 # ==========================================
-# 🔗 URLs públicas CSV de tu Google Sheet
 SHEET_URL_GENERAL = st.secrets.get(
     "SHEET_URL_GENERAL",
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv",
 )
 SHEET_URL_UMBRELLA = st.secrets.get(
-    "SHEET_URL_UMBRELLA", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv"
+    "SHEET_URL_UMBRELLA", "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA"
 )
 
 
@@ -165,7 +164,6 @@ with tab_general:
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
 
-      # 1. Filtro por Condición / Estado Alerta
       condiciones = ["Todos"] + sorted(
           list(df_proc["Condición / Estado"].dropna().astype(str).unique())
       )
@@ -179,7 +177,6 @@ with tab_general:
             df_filtrado["Condición / Estado"] == condicion_sel
         ]
 
-      # 2. Filtro por Proyecto
       proyectos = ["Todos"] + sorted(
           list(df_filtrado["Proyecto"].dropna().astype(str).unique())
       )
@@ -187,7 +184,6 @@ with tab_general:
       if proyecto_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Proyecto"] == proyecto_sel]
 
-      # 3. Filtro por Territorio Comercial
       territorios = ["Todos"] + sorted(
           list(
               df_filtrado["Territorio Comercial"].dropna().astype(str).unique()
@@ -201,7 +197,6 @@ with tab_general:
             df_filtrado["Territorio Comercial"] == territorio_sel
         ]
 
-      # 4. Filtro por Contratista (SS IMP)
       contratistas = ["Todos"] + sorted(
           list(df_filtrado["SS IMP"].dropna().astype(str).unique())
       )
@@ -211,7 +206,6 @@ with tab_general:
       if contratista_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["SS IMP"] == contratista_sel]
 
-      # 5. Filtro por Estado Macro
       estados_macro = ["Todos"] + sorted(
           list(df_filtrado["Estado Macro"].dropna().astype(str).unique())
       )
@@ -223,7 +217,6 @@ with tab_general:
             df_filtrado["Estado Macro"] == estado_macro_sel
         ]
 
-      # 6. Búsqueda por Nombre de Sitio
       busqueda = st.sidebar.text_input("Buscar por Sitio (Site Name)")
       if busqueda:
         df_filtrado = df_filtrado[
@@ -257,7 +250,6 @@ with tab_general:
       # --- PREPARACIÓN DE LA TABLA PRINCIPAL ---
       df_display = df_filtrado.copy()
 
-      # Columna explícita para Días Transcurridos
       df_display["Días Transcurridos"] = df_display[
           "Dias_Desde_Integracion"
       ].apply(
@@ -266,7 +258,6 @@ with tab_general:
           )
       )
 
-      # Orden prioritario de columnas
       cols_ordenadas = [
           "Condición / Estado",
           "Días Transcurridos",
@@ -301,7 +292,6 @@ with tab_general:
 
       df_final = df_display[cols_existentes + otras_cols]
 
-      # Estilo condicional para las celdas de 'Condición / Estado'
       def colorear_condicion(val):
         if val == "🚨 Crítico (>= 16 días)":
           return (
@@ -357,7 +347,6 @@ with tab_general:
           },
       )
 
-      # Botón de descarga en CSV
       csv_gen = df_final.to_csv(index=False).encode("utf-8")
       st.download_button(
           label="📥 Descargar Reporte General (CSV)",
@@ -422,7 +411,8 @@ with tab_rechazados:
       else:
         df_rechazados = df_umbrella.copy()
 
-      # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS (PROTECCIÓN PARA Flujo_UUID) ---
+      # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS ---
+      # Se agregan 'id' y 'solicitante' a los términos de eliminación
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -437,6 +427,8 @@ with tab_rechazados:
           "adjunto",
           "url",
           "link",
+          "id",
+          "solicitante",
       ]
 
       cols_para_drop = []
@@ -444,11 +436,11 @@ with tab_rechazados:
         col_raw = str(col).strip()
         col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
 
-        # Proteger columna Flujo_UUID
+        # Protección explícita para Flujo_UUID
         if col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]:
           continue
 
-        if any(term in col_limpia for term in terminos_a_eliminar):
+        if any(term == col_limpia or term in col_limpia for term in terminos_a_eliminar):
           cols_para_drop.append(col)
 
       df_rechazados_clean = df_rechazados.drop(
@@ -546,7 +538,6 @@ with tab_rechazados:
           df_rechazados_clean = df_rechazados_clean[mask_search]
 
       # --- 6. REORDENAR COLUMNAS PARA VISUALIZACIÓN ---
-      # Prioridad de lectura al inicio: Nombre_Sitio -> Estado -> Fecha_Estado -> Flujo_UUID
       cols = list(df_rechazados_clean.columns)
       prioridad = [col_sitio, col_estado, col_fecha_estado, col_uuid]
       prioridad_existente = [c for c in prioridad if c and c in cols]
