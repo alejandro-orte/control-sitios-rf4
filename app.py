@@ -375,10 +375,10 @@ with tab_general:
 # ==========================================
 with tab_rechazados:
   st.header(
-      "🚫 Registro de Sitios Rechazados desde la pestaña Umbrella (Año 2026)"
+      "🚫 Registro de Sitios Rechazados Umbrella (Año 2026)"
   )
 
-  if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
+  if SHEET_URL_UMBRELLA == "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv":
     st.warning(
         "⚠️ Debes publicar la pestaña 'umbrella' en Google Sheets como CSV y"
         " pegar la URL en la variable `SHEET_URL_UMBRELLA`."
