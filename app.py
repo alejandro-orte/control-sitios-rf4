@@ -13,15 +13,18 @@ st.set_page_config(
 st.title("📡 Tablero de Control de Sitios BSS")
 
 # ==========================================
-# CONFIGURACIÓN DE URLS DE GOOGLE SHEETS
+# CONFIGURACIÓN DE URLS Y CONTRASEÑA
 # ==========================================
 SHEET_URL_GENERAL = st.secrets.get(
     "SHEET_URL_GENERAL",
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv",
 )
 SHEET_URL_UMBRELLA = st.secrets.get(
-    "SHEET_URL_UMBRELLA", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv"
+    "SHEET_URL_UMBRELLA", "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA"
 )
+
+# Contraseña para la actualización manual
+PASSWORD_CORRECTA = st.secrets.get("SYNC_PASSWORD", "admin123")
 
 
 # Cargar datos descartando caché automáticamente cada 60 segundos
@@ -30,10 +33,27 @@ def cargar_datos(url):
   return pd.read_csv(url)
 
 
-# Botón manual de sincronización en la barra lateral
+# ==========================================
+# MODAL CON CONTRASEÑA PARA ACTUALIZAR
+# ==========================================
+@st.dialog("🔐 Confirmación requerida")
+def modal_autenticacion():
+  st.write("Ingresa la contraseña para refrescar el caché de Google Sheets:")
+  pwd_input = st.text_input("Contraseña", type="password")
+
+  if st.button("Confirmar y Sincronizar", use_container_width=True):
+    if pwd_input == PASSWORD_CORRECTA:
+      st.cache_data.clear()
+      st.success("¡Datos actualizados correctamente!")
+      st.rerun()
+    else:
+      st.error("❌ Contraseña incorrecta. Intenta nuevamente.")
+
+
+# Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
 if st.sidebar.button("Actualizar datos desde Google Sheets"):
-  st.cache_data.clear()
+  modal_autenticacion()
 
 # ==========================================
 # CREACIÓN DE PESTAÑAS
@@ -52,7 +72,6 @@ with tab_general:
       " sitios en **PRODUCCIÓN**)."
   )
 
-  # Estilos CSS personalizados para la leyenda de estados condicionales
   st.markdown(
       """
     <style>
@@ -83,7 +102,6 @@ with tab_general:
   try:
     df = cargar_datos(SHEET_URL_GENERAL)
 
-    # Validar columnas principales requeridas del archivo
     required_cols = {
         "Site Name",
         "Proyecto",
@@ -101,13 +119,11 @@ with tab_general:
     else:
       df_proc = df.copy()
 
-      # 🚫 EXCLUIR SITIOS EN PRODUCCIÓN
       df_proc = df_proc[
           df_proc["Estado Macro"].astype(str).str.strip().str.upper()
           != "PRODUCCIÓN"
       ]
 
-      # Convertir Fechas a formato datetime
       df_proc["Fecha_Integracion_DT"] = pd.to_datetime(
           df_proc["Integracion"], dayfirst=True, errors="coerce"
       )
@@ -119,15 +135,12 @@ with tab_general:
       else:
         df_proc["Fecha_OnAir_DT"] = pd.NaT
 
-      # Fecha actual sin hora
       fecha_actual = pd.Timestamp.now().floor("d")
 
-      # Días transcurridos desde la fecha de Integración
       df_proc["Dias_Desde_Integracion"] = (
           fecha_actual - df_proc["Fecha_Integracion_DT"]
       ).dt.days
 
-      # --- LÓGICA CONDICIONAL ---
       def clasificar_condicion(row):
         if pd.notna(row["Fecha_OnAir_DT"]):
           return "🎉 Completado / OnAir"
@@ -146,7 +159,6 @@ with tab_general:
           clasificar_condicion, axis=1
       )
 
-      # Mapeo de prioridad para ordenamiento automático
       prioridad_map = {
           "🚨 Crítico (>= 16 días)": 1,
           "⚠️ Alerta (8 - 15 días)": 2,
@@ -160,7 +172,6 @@ with tab_general:
           by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
       )
 
-      # --- FILTROS DE LA BARRA LATERAL (GENERAL) ---
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
 
@@ -225,7 +236,6 @@ with tab_general:
             .str.contains(busqueda, case=False, na=False)
         ]
 
-      # --- TARJETAS MÉTRICAS ---
       col1, col2, col3, col4, col5 = st.columns(5)
       col1.metric("Total Sitios Pendientes", len(df_filtrado))
       col2.metric(
@@ -247,9 +257,7 @@ with tab_general:
 
       st.markdown("---")
 
-      # --- PREPARACIÓN DE LA TABLA PRINCIPAL ---
       df_display = df_filtrado.copy()
-
       df_display["Días Transcurridos"] = df_display[
           "Dias_Desde_Integracion"
       ].apply(
@@ -379,7 +387,6 @@ with tab_rechazados:
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-      # --- 1. FILTRADO DE FILAS RECHAZADAS ---
       estados_rechazados = [
           "Rechazado 1 NOC",
           "Rechazado 1 RF",
@@ -411,8 +418,6 @@ with tab_rechazados:
       else:
         df_rechazados = df_umbrella.copy()
 
-      # --- 2. ELIMINACIÓN DE COLUMNAS NO DESEADAS ---
-      # Lista actualizada con todas las columnas a descartar
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -457,7 +462,6 @@ with tab_rechazados:
         col_raw = str(col).strip()
         col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
 
-        # Protección explícita para Flujo_UUID
         if col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]:
           continue
 
@@ -471,7 +475,6 @@ with tab_rechazados:
           columns=cols_para_drop, errors="ignore"
       ).copy()
 
-      # --- 3. FILTRADO POR AÑO 2026 EN FECHA_ESTADO ---
       col_fecha_estado = None
       for col in df_rechazados_clean.columns:
         col_limpia = str(col).strip().lower().replace("_", " ")
@@ -489,7 +492,6 @@ with tab_rechazados:
             fechas_dt.dt.year == 2026
         ].copy()
 
-      # --- 4. FORMATO DE FECHAS (Evita ##########) ---
       for col in df_rechazados_clean.columns:
         if "fecha" in str(col).lower():
           fecha_parsed = pd.to_datetime(
@@ -504,7 +506,6 @@ with tab_rechazados:
               {"nan": "", "None": "", "<NaT>": ""}
           )
 
-      # --- 5. BUSCADOR POR NOMBRE DE SITIO O Flujo_UUID ---
       col_sitio = None
       for col in df_rechazados_clean.columns:
         col_norm = str(col).strip().lower().replace("_", " ")
@@ -561,7 +562,6 @@ with tab_rechazados:
           )
           df_rechazados_clean = df_rechazados_clean[mask_search]
 
-      # --- 6. REORDENAR COLUMNAS PARA VISUALIZACIÓN ---
       cols = list(df_rechazados_clean.columns)
       prioridad = [col_sitio, col_estado, col_fecha_estado, col_uuid]
       prioridad_existente = [c for c in prioridad if c and c in cols]
@@ -571,7 +571,6 @@ with tab_rechazados:
 
       df_rechazados_clean = df_rechazados_clean[prioridad_existente + cols]
 
-      # --- 7. PRESENTACIÓN DE RESULTADOS ---
       st.metric(
           label="Total Registros Filtrados en Umbrella (2026)",
           value=len(df_rechazados_clean),
