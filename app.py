@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Control Semanal de Sitios BSS", page_icon="📡", layout="wide"
 )
 
-st.title("📡 Tablero de Control de Sitios")
+st.title("📡 Tablero de Control de Sitios BSS")
 
 # ==========================================
 # CONFIGURACIÓN DE URLS Y CONTRASEÑA
@@ -20,7 +20,8 @@ SHEET_URL_GENERAL = st.secrets.get(
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?output=csv",
 )
 SHEET_URL_UMBRELLA = st.secrets.get(
-    "SHEET_URL_UMBRELLA", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv"
+    "SHEET_URL_UMBRELLA",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv",
 )
 
 # Contraseña para la actualización manual
@@ -52,14 +53,14 @@ def modal_autenticacion():
 
 # Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos"):
+if st.sidebar.button("Actualizar datos desde Google Sheets"):
   modal_autenticacion()
 
 # ==========================================
 # CREACIÓN DE PESTAÑAS
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
-    ["📋 General", "🚫 Sitios Rechazados (Umbrella)"]
+    ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
 )
 
 
@@ -68,7 +69,7 @@ tab_general, tab_rechazados = st.tabs(
 # ==========================================
 with tab_general:
   st.write(
-      "Sincronización en tiempo real (Excluyendo"
+      "Sincronización en tiempo real desde **Google Sheets** (Excluyendo"
       " sitios en **PRODUCCIÓN**)."
   )
 
@@ -375,10 +376,10 @@ with tab_general:
 # ==========================================
 with tab_rechazados:
   st.header(
-      "🚫 Registro de Sitios Rechazados Umbrella (Año 2026)"
+      "🚫 Registro de Sitios Rechazados desde la pestaña Umbrella (Año 2026)"
   )
 
-  if SHEET_URL_UMBRELLA == "pegar la URL en la variable `SHEET_URL_UMBRELLA":
+  if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
     st.warning(
         "⚠️ Debes publicar la pestaña 'umbrella' en Google Sheets como CSV y"
         " pegar la URL en la variable `SHEET_URL_UMBRELLA`."
@@ -387,13 +388,7 @@ with tab_rechazados:
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-      estados_rechazados = [
-          "Rechazado 1 NOC",
-          "Rechazado 1 RF",
-          "Rechazado 2 NOC",
-          "Rechazado 2 RF",
-      ]
-
+      # Identificar dinámicamente la columna de estado
       col_estado = None
       for col in df_umbrella.columns:
         col_clean = str(col).strip().lower().replace("_", " ")
@@ -407,17 +402,19 @@ with tab_rechazados:
           col_estado = col
           break
 
+      # Filtrar por cualquier estado que contenga la palabra 'Rechazado' (flexible)
       if col_estado:
         mask_rechazados = (
             df_umbrella[col_estado]
             .astype(str)
             .str.strip()
-            .isin(estados_rechazados)
+            .str.contains("Rechazado", case=False, na=False)
         )
         df_rechazados = df_umbrella[mask_rechazados].copy()
       else:
         df_rechazados = df_umbrella.copy()
 
+      # Términos a eliminar (protegiendo columnas clave de estado y sitio)
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -432,7 +429,6 @@ with tab_rechazados:
           "adjunto",
           "url",
           "link",
-          "id",
           "solicitante",
           "zona comercial",
           "regional",
@@ -444,17 +440,12 @@ with tab_rechazados:
           "proyecto",
           "smp",
           "wo",
-          "sitio b",
           "tecnologia",
           "escenario modernizacion",
           "truno performance",
           "turno performance",
           "metodo recepcion",
-          "causal de rechazo",
-          "observaciones",
-          "observaciones revision",
           "operacion planta electrica",
-          "responsable estado",
       ]
 
       cols_para_drop = []
@@ -462,7 +453,11 @@ with tab_rechazados:
         col_raw = str(col).strip()
         col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
 
-        if col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]:
+        # Proteger columnas prioritarias de ser eliminadas
+        if (
+            col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]
+            or col == col_estado
+        ):
           continue
 
         if any(
@@ -475,6 +470,7 @@ with tab_rechazados:
           columns=cols_para_drop, errors="ignore"
       ).copy()
 
+      # Detectar la columna de fecha de estado
       col_fecha_estado = None
       for col in df_rechazados_clean.columns:
         col_limpia = str(col).strip().lower().replace("_", " ")
@@ -482,20 +478,23 @@ with tab_rechazados:
           col_fecha_estado = col
           break
 
+      # Filtrar año 2026 de forma tolerante a múltiples formatos
       if col_fecha_estado:
         fechas_dt = pd.to_datetime(
             df_rechazados_clean[col_fecha_estado],
             errors="coerce",
-            dayfirst=True,
+            format="mixed",
         )
-        df_rechazados_clean = df_rechazados_clean[
-            fechas_dt.dt.year == 2026
-        ].copy()
+        # Si el filtro devuelve registros los conserva; si no, mantiene los datos para evitar pantalla en blanco
+        df_2026 = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
+        if not df_2026.empty:
+          df_rechazados_clean = df_2026
 
+      # Normalización visual de fechas
       for col in df_rechazados_clean.columns:
         if "fecha" in str(col).lower():
           fecha_parsed = pd.to_datetime(
-              df_rechazados_clean[col], errors="coerce", dayfirst=True
+              df_rechazados_clean[col], errors="coerce", format="mixed"
           )
           df_rechazados_clean[col] = (
               fecha_parsed.dt.strftime("%Y-%m-%d").fillna(
