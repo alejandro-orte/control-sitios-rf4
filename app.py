@@ -39,7 +39,7 @@ def cargar_datos(url):
 # ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
-  st.write("Ingresa la contraseña para refrescar el caché de Google Sheets:")
+  st.write("Ingresa la contraseña para Actualizar informacion")
   pwd_input = st.text_input("Contraseña", type="password")
 
   if st.button("Confirmar y Sincronizar", use_container_width=True):
