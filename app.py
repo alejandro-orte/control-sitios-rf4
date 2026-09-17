@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# ESTILOS CSS PERSONALIZADOS (NAVEGACIÓN CENTRADA Y ESTÉTICA)
+# ESTILOS CSS PERSONALIZADOS
 # ==========================================
 st.markdown(
     """
@@ -88,6 +88,16 @@ st.markdown(
             transform: translateY(-1px) !important;
         }
 
+        /* Tarjeta de Sincronización en Sidebar */
+        .sync-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
         /* Badges / Leyendas de estado */
         .badge {
             padding: 6px 12px;
@@ -148,10 +158,26 @@ def modal_autenticacion():
       st.error("❌ Contraseña incorrecta. Intenta nuevamente.")
 
 
-# Botón en la barra lateral que activa el modal
-st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos"):
-  modal_autenticacion()
+# ==========================================
+# BARRA LATERAL MEJORADA (SIDEBAR)
+# ==========================================
+with st.sidebar:
+  st.markdown(
+      """
+    <div class="sync-card">
+        <h3 style="margin-top: 0; color: #1e293b; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+            🔄 Sincronización
+        </h3>
+        <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 12px;">
+            Forzar actualización en tiempo real borrando el caché local de Google Sheets.
+        </p>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  if st.button("🔄 Actualizar Datos Ahora", use_container_width=True):
+    modal_autenticacion()
 
 # ==========================================
 # NAVEGACIÓN CENTRADA Y ESTÉTICA ENTRE TABLEROS
