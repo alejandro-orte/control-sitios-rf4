@@ -53,7 +53,7 @@ def modal_autenticacion():
 
 # Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos desde Google Sheets"):
+if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
