@@ -11,59 +11,71 @@ st.set_page_config(
 )
 
 # ==========================================
-# ESTILOS CSS PERSONALIZADOS (DISEÑO MODERNO DE TABS)
+# ESTILOS CSS PERSONALIZADOS (MEJORA VISUAL DE PESTAÑAS)
 # ==========================================
 st.markdown(
     """
     <style>
-        /* Ocultar la línea roja horizontal predeterminada de Streamlit */
+        /* Ocultar la barra horizontal roja por defecto de Streamlit */
         .stTabs [data-baseweb="tab-highlight"] {
             display: none !important;
         }
 
-        /* Contenedor principal de pestañas estilo Segmented Control */
+        /* Contenedor general de pestañas */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 8px;
-            background-color: #f1f5f9;
-            padding: 6px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 24px;
-            display: inline-flex;
-            width: auto;
-        }
-
-        /* Pestaña individual (Inactiva) */
-        .stTabs [data-baseweb="tab"] {
-            height: 44px;
+            gap: 16px !important;
             background-color: transparent !important;
-            border-radius: 8px !important;
-            border: none !important;
-            color: #64748b !important;
-            font-size: 15px !important;
+            padding: 4px 0px 16px 0px !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            margin-bottom: 24px !important;
+        }
+
+        /* Estilo general de las Pestañas (Botones de tablero) */
+        .stTabs [data-baseweb="tab"] {
+            height: 48px !important;
+            background-color: #f8fafc !important;
+            border-radius: 10px !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            font-size: 16px !important;
             font-weight: 600 !important;
-            padding: 0px 20px !important;
+            padding: 0px 24px !important;
             transition: all 0.2s ease-in-out !important;
-            box-shadow: none !important;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
-        /* Efecto al pasar el cursor (Hover) */
+        /* Efecto Hover (Al pasar el ratón) */
         .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e2e8f0 !important;
             color: #0f172a !important;
-            background-color: rgba(255, 255, 255, 0.6) !important;
-            cursor: pointer;
+            border-color: #94a3b8 !important;
+            cursor: pointer !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.08) !important;
         }
 
-        /* Pestaña ACTIVA (Seleccionada) */
+        /* Pestaña ACTIVA / SELECCIONADA */
         .stTabs [aria-selected="true"] {
-            background-color: #ffffff !important;
-            color: #2563eb !important;
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+            border-color: #1e40af !important;
             font-weight: 700 !important;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
-            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0px 4px 12px rgba(29, 78, 216, 0.35) !important;
+            transform: translateY(-1px) !important;
         }
 
-        /* Ajustes de Badges / Leyendas */
+        /* Corregir desalineación visual interna del texto e icono */
+        .stTabs [data-baseweb="tab"] > div {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+
+        /* Badges / Leyendas */
         .badge {
             padding: 6px 12px;
             border-radius: 6px;
@@ -129,7 +141,7 @@ if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
-# CREACIÓN DE PESTAÑAS
+# CREACIÓN DE PESTAÑAS Y NAVEGACIÓN
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
     ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
