@@ -485,7 +485,6 @@ with tab_rechazados:
             errors="coerce",
             format="mixed",
         )
-        # Si el filtro devuelve registros los conserva; si no, mantiene los datos para evitar pantalla en blanco
         df_2026 = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
         if not df_2026.empty:
           df_rechazados_clean = df_2026
@@ -524,13 +523,27 @@ with tab_rechazados:
           col_uuid = col
           break
 
-      search_query = st.text_input(
-          "🔍 **Buscar por Nombre de Sitio o Flujo_UUID:**",
-          placeholder="Ejemplo: NAR.Santa Cecilia o 46977E-9118CE...",
-          key="search_sitio_umbrella",
-      )
+      # ==========================================
+      # BUSCADOR CON BOTÓN "BUSCAR"
+      # ==========================================
+      col_input, col_btn = st.columns([4, 1])
 
-      if search_query.strip():
+      with col_input:
+        search_query = st.text_input(
+            "🔍 **Buscar por Nombre de Sitio o Flujo_UUID:**",
+            placeholder="Ejemplo: NAR.Santa Cecilia o 46977E-9118CE...",
+            key="search_sitio_umbrella",
+        )
+
+      with col_btn:
+        st.write("##")  # Alineación vertical con el input
+        btn_buscar = st.button(
+            "🔍 Buscar", key="btn_buscar_umbrella", use_container_width=True
+        )
+
+      if search_query.strip() and (
+          btn_buscar or st.session_state.get("search_sitio_umbrella")
+      ):
         query = search_query.strip()
         condiciones = []
         if col_sitio:
