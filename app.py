@@ -39,7 +39,7 @@ def cargar_datos(url):
 # ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
-  st.write("Ingresa la contraseña para Actualizar informacion")
+  st.write("Ingresa la contraseña para refrescar el caché de Google Sheets:")
   pwd_input = st.text_input("Contraseña", type="password")
 
   if st.button("Confirmar y Sincronizar", use_container_width=True):
@@ -53,7 +53,7 @@ def modal_autenticacion():
 
 # Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos"):
+if st.sidebar.button("Actualizar datos desde Google Sheets"):
   modal_autenticacion()
 
 # ==========================================
@@ -267,13 +267,14 @@ with tab_general:
           )
       )
 
+      # Reemplazamos 'OnAir' por 'FC Visita' en la lista de columnas ordenadas
       cols_ordenadas = [
           "Condición / Estado",
           "Días Transcurridos",
           "Site Name",
           "Territorio Comercial",
           "Integracion",
-          "OnAir",
+          "FC Visita",
           "Estado Macro",
           "Estado Insrv",
           "Sub Estado Insrv",
@@ -346,6 +347,9 @@ with tab_general:
               "Territorio Comercial": st.column_config.TextColumn(
                   "Territorio Comercial", width="medium"
               ),
+              "FC Visita": st.column_config.TextColumn(
+                  "FC Visita", width="medium"
+              ),
               "Comentario": st.column_config.TextColumn(
                   "Comentario", width="large"
               ),
@@ -376,8 +380,7 @@ with tab_general:
 # ==========================================
 with tab_rechazados:
   st.header(
-      "🚫 Registro de Sitios Rechazados Umbrella (Año 2026) Nota: Sitio que no esta en el listado fue aprobado o no a iniciado el proceso ON AIR"
-      
+      "🚫 Registro de Sitios Rechazados desde la pestaña Umbrella (Año 2026)"
   )
 
   if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
@@ -428,24 +431,20 @@ with tab_rechazados:
       col_agrupador = col_uuid if col_uuid else col_sitio
 
       if col_estado and col_agrupador:
-        # Mascara para registros que están Aprobados
         mask_aprobados = (
             df_umbrella[col_estado]
             .astype(str)
             .str.strip()
             .str.contains("Aprobado", case=False, na=False)
         )
-        # Obtener la lista de Sitios / UUIDs que tienen al menos un estado 'Aprobado'
         sitios_aprobados = (
             df_umbrella[mask_aprobados][col_agrupador].dropna().unique()
         )
 
-        # Excluir todos los registros de los sitios que ya fueron aprobados
         df_umbrella_sin_aprobados = df_umbrella[
             ~df_umbrella[col_agrupador].isin(sitios_aprobados)
         ].copy()
 
-        # Ahora filtramos solo los registros que están en estado "Rechazado"
         mask_rechazados = (
             df_umbrella_sin_aprobados[col_estado]
             .astype(str)
@@ -558,7 +557,7 @@ with tab_rechazados:
         )
 
       with col_btn:
-        st.write("##")  # Espaciador para alinear el botón verticalmente
+        st.write("##")
         btn_buscar = st.button(
             "🔍 Buscar", key="btn_buscar_umbrella", use_container_width=True
         )
