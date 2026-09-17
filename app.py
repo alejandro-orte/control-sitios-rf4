@@ -11,68 +11,67 @@ st.set_page_config(
 )
 
 # ==========================================
-# ESTILOS CSS PERSONALIZADOS (MEJORA VISUAL DE PESTAÑAS)
+# ESTILOS CSS PERSONALIZADOS (BOTONES DE NAVEGACIÓN REORGANIZADOS)
 # ==========================================
 st.markdown(
     """
     <style>
-        /* Ocultar la barra horizontal roja por defecto de Streamlit */
-        .stTabs [data-baseweb="tab-highlight"] {
+        /* Ocultar el label del radio button para la navegación */
+        div[data-testid="stRadio"] > label {
             display: none !important;
         }
 
-        /* Contenedor general de pestañas */
-        .stTabs [data-baseweb="tab-list"] {
+        /* Formatear el contenedor de Radio Buttons como barra flotante de pestañas */
+        div[data-testid="stRadio"] > div {
+            display: flex !important;
+            flex-direction: row !important;
             gap: 16px !important;
-            background-color: transparent !important;
-            padding: 4px 0px 16px 0px !important;
-            border-bottom: 2px solid #e2e8f0 !important;
-            margin-bottom: 24px !important;
+            background-color: #f1f5f9 !important;
+            padding: 8px !important;
+            border-radius: 12px !important;
+            border: 1px solid #cbd5e1 !important;
+            margin-bottom: 25px !important;
+            width: fit-content !important;
         }
 
-        /* Estilo general de las Pestañas (Botones de tablero) */
-        .stTabs [data-baseweb="tab"] {
-            height: 48px !important;
-            background-color: #f8fafc !important;
-            border-radius: 10px !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #334155 !important;
+        /* Estilo de cada botón individual */
+        div[data-testid="stRadio"] label {
+            background-color: #ffffff !important;
+            border: 1px solid #94a3b8 !important;
+            border-radius: 8px !important;
+            padding: 10px 24px !important;
             font-size: 16px !important;
             font-weight: 600 !important;
-            padding: 0px 24px !important;
+            color: #1e293b !important;
+            cursor: pointer !important;
             transition: all 0.2s ease-in-out !important;
-            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
-            display: inline-flex !important;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05) !important;
+            display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            margin: 0 !important;
         }
 
-        /* Efecto Hover (Al pasar el ratón) */
-        .stTabs [data-baseweb="tab"]:hover {
+        /* Ocultar el círculo nativo del radio button */
+        div[data-testid="stRadio"] label > div:first-child {
+            display: none !important;
+        }
+
+        /* Efecto al pasar el cursor por encima (Hover) */
+        div[data-testid="stRadio"] label:hover {
             background-color: #e2e8f0 !important;
-            color: #0f172a !important;
-            border-color: #94a3b8 !important;
-            cursor: pointer !important;
+            border-color: #475569 !important;
             transform: translateY(-2px) !important;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1) !important;
         }
 
-        /* Pestaña ACTIVA / SELECCIONADA */
-        .stTabs [aria-selected="true"] {
+        /* Estilo del Botón Seleccionado / Activo */
+        div[data-testid="stRadio"] label:has(input:checked) {
             background-color: #1d4ed8 !important;
             color: #ffffff !important;
             border-color: #1e40af !important;
             font-weight: 700 !important;
             box-shadow: 0px 4px 12px rgba(29, 78, 216, 0.35) !important;
-            transform: translateY(-1px) !important;
-        }
-
-        /* Corregir desalineación visual interna del texto e icono */
-        .stTabs [data-baseweb="tab"] > div {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
         }
 
         /* Badges / Leyendas */
@@ -141,17 +140,20 @@ if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
-# CREACIÓN DE PESTAÑAS Y NAVEGACIÓN
+# NAVEGACIÓN MODERNA ENTRE TABLEROS
 # ==========================================
-tab_general, tab_rechazados = st.tabs(
-    ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
+tab_seleccionada = st.radio(
+    "Selecciona el tablero:",
+    ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"],
+    horizontal=True,
+    key="navegacion_tableros",
 )
 
 
 # ==========================================
 # PESTAÑA 1: GENERAL BSS
 # ==========================================
-with tab_general:
+if tab_seleccionada == "📋 General BSS":
   st.write(
       "Sincronización en tiempo real (Excluyendo sitios en **PRODUCCIÓN**)."
   )
@@ -446,7 +448,7 @@ with tab_general:
 # ==========================================
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
-with tab_rechazados:
+elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
   st.header("🚫 Registro de Sitios Rechazados Umbrella (Año 2026)")
 
   st.markdown(
@@ -506,7 +508,6 @@ with tab_rechazados:
           break
 
       # 3. LÓGICA DE EXCLUSIÓN:
-      # Identificar sitios o flujos que TENGAN al menos un estado "Aprobado"
       col_agrupador = col_uuid if col_uuid else col_sitio
 
       if col_estado and col_agrupador:
@@ -597,7 +598,7 @@ with tab_rechazados:
           col_fecha_estado = col
           break
 
-      # Filtrar año 2026 de forma tolerante a múltiples formatos
+      # Filtrar año 2026
       if col_fecha_estado:
         fechas_dt = pd.to_datetime(
             df_rechazados_clean[col_fecha_estado],
