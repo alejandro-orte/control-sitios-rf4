@@ -7,10 +7,10 @@ import streamlit as st
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
 st.set_page_config(
-    page_title="Control Semanal de Sitios", page_icon="📡", layout="wide"
+    page_title="Control Semanal de Sitios BSS", page_icon="📡", layout="wide"
 )
 
-st.title("📡 Tablero de Control de Sitios")
+st.title("📡 Tablero de Control de Sitios BSS")
 
 # ==========================================
 # CONFIGURACIÓN DE URLS Y CONTRASEÑA
@@ -39,7 +39,7 @@ def cargar_datos(url):
 # ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
-  st.write("Ingresa la contraseña para refrescar el caché")
+  st.write("Ingresa la contraseña para refrescar el caché de Google Sheets:")
   pwd_input = st.text_input("Contraseña", type="password")
 
   if st.button("Confirmar y Sincronizar", use_container_width=True):
@@ -53,14 +53,14 @@ def modal_autenticacion():
 
 # Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos"):
+if st.sidebar.button("Actualizar datos desde Google Sheets"):
   modal_autenticacion()
 
 # ==========================================
 # CREACIÓN DE PESTAÑAS
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
-    ["📋 General", "🚫 Sitios Rechazados (Umbrella)"]
+    ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
 )
 
 
@@ -69,7 +69,7 @@ tab_general, tab_rechazados = st.tabs(
 # ==========================================
 with tab_general:
   st.write(
-      "Sincronización en tiempo real (Excluyendo"
+      "Sincronización en tiempo real desde **Google Sheets** (Excluyendo"
       " sitios en **PRODUCCIÓN**)."
   )
 
@@ -388,7 +388,7 @@ with tab_rechazados:
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-      # Identificar dinámicamente la columna de estado
+      # 1. Identificar dinámicamente la columna de Estado
       col_estado = None
       for col in df_umbrella.columns:
         col_clean = str(col).strip().lower().replace("_", " ")
@@ -402,19 +402,60 @@ with tab_rechazados:
           col_estado = col
           break
 
-      # Filtrar por cualquier estado que contenga la palabra 'Rechazado' (flexible)
-      if col_estado:
-        mask_rechazados = (
+      # 2. Identificar la columna de Nombre de Sitio e ID/UUID
+      col_sitio = None
+      for col in df_umbrella.columns:
+        col_norm = str(col).strip().lower().replace("_", " ")
+        if col_norm in [
+            "nombre sitio",
+            "nombre_sitio",
+            "sitio b",
+            "sitio_b",
+            "sitio",
+        ]:
+          col_sitio = col
+          break
+
+      col_uuid = None
+      for col in df_umbrella.columns:
+        if str(col).strip().lower() in ["flujo_uuid", "flujo uuid"]:
+          col_uuid = col
+          break
+
+      # 3. LÓGICA DE EXCLUSIÓN:
+      # Identificar sitios o flujos que TENGAN al menos un estado "Aprobado"
+      col_agrupador = col_uuid if col_uuid else col_sitio
+
+      if col_estado and col_agrupador:
+        # Mascara para registros que están Aprobados
+        mask_aprobados = (
             df_umbrella[col_estado]
+            .astype(str)
+            .str.strip()
+            .str.contains("Aprobado", case=False, na=False)
+        )
+        # Obtener la lista de Sitios / UUIDs que tienen al menos un estado 'Aprobado'
+        sitios_aprobados = (
+            df_umbrella[mask_aprobados][col_agrupador].dropna().unique()
+        )
+
+        # Excluir todos los registros de los sitios que ya fueron aprobados
+        df_umbrella_sin_aprobados = df_umbrella[
+            ~df_umbrella[col_agrupador].isin(sitios_aprobados)
+        ].copy()
+
+        # Ahora filtramos solo los registros que están en estado "Rechazado"
+        mask_rechazados = (
+            df_umbrella_sin_aprobados[col_estado]
             .astype(str)
             .str.strip()
             .str.contains("Rechazado", case=False, na=False)
         )
-        df_rechazados = df_umbrella[mask_rechazados].copy()
+        df_rechazados = df_umbrella_sin_aprobados[mask_rechazados].copy()
       else:
         df_rechazados = df_umbrella.copy()
 
-      # Términos a eliminar (protegiendo columnas clave de estado y sitio)
+      # 4. Términos a eliminar
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -453,7 +494,6 @@ with tab_rechazados:
         col_raw = str(col).strip()
         col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
 
-        # Proteger columnas prioritarias de ser eliminadas
         if (
             col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]
             or col == col_estado
@@ -504,25 +544,6 @@ with tab_rechazados:
               {"nan": "", "None": "", "<NaT>": ""}
           )
 
-      col_sitio = None
-      for col in df_rechazados_clean.columns:
-        col_norm = str(col).strip().lower().replace("_", " ")
-        if col_norm in [
-            "nombre sitio",
-            "nombre_sitio",
-            "sitio b",
-            "sitio_b",
-            "sitio",
-        ]:
-          col_sitio = col
-          break
-
-      col_uuid = None
-      for col in df_rechazados_clean.columns:
-        if str(col).strip().lower() in ["flujo_uuid", "flujo uuid"]:
-          col_uuid = col
-          break
-
       # ==========================================
       # BUSCADOR CON BOTÓN "BUSCAR"
       # ==========================================
@@ -536,7 +557,7 @@ with tab_rechazados:
         )
 
       with col_btn:
-        st.write("##")  # Alineación vertical con el input
+        st.write("##")  # Espaciador para alinear el botón verticalmente
         btn_buscar = st.button(
             "🔍 Buscar", key="btn_buscar_umbrella", use_container_width=True
         )
@@ -606,7 +627,7 @@ with tab_rechazados:
       else:
         st.info(
             "No se encontraron registros rechazados del año 2026 que"
-            " coincidan con la búsqueda."
+            " coincidan con los criterios."
         )
 
     except Exception as e_umb:
