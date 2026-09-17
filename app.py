@@ -11,67 +11,67 @@ st.set_page_config(
 )
 
 # ==========================================
-# ESTILOS CSS PERSONALIZADOS (MEJORA DE PESTAÑAS / TABS)
+# ESTILOS CSS PERSONALIZADOS (DISEÑO MODERNO DE TABS)
 # ==========================================
 st.markdown(
     """
     <style>
-        /* Contenedor general de pestañas */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 12px;
-            background-color: #f8f9fa;
-            padding: 8px 12px;
-            border-radius: 10px;
-            border: 1px solid #e0e0e0;
-            margin-bottom: 20px;
+        /* Ocultar la línea roja horizontal predeterminada de Streamlit */
+        .stTabs [data-baseweb="tab-highlight"] {
+            display: none !important;
         }
 
-        /* Estilo base de cada pestaña (Inactiva) */
+        /* Contenedor principal de pestañas estilo Segmented Control */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #f1f5f9;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+            display: inline-flex;
+            width: auto;
+        }
+
+        /* Pestaña individual (Inactiva) */
         .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            white-space: pre-wrap;
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
-            color: #4b5563;
-            font-size: 16px;
-            font-weight: 600;
-            padding: 0px 24px;
-            transition: all 0.2s ease-in-out;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            height: 44px;
+            background-color: transparent !important;
+            border-radius: 8px !important;
+            border: none !important;
+            color: #64748b !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            padding: 0px 20px !important;
+            transition: all 0.2s ease-in-out !important;
+            box-shadow: none !important;
         }
 
         /* Efecto al pasar el cursor (Hover) */
         .stTabs [data-baseweb="tab"]:hover {
-            background-color: #f3f4f6;
-            color: #1f2937;
-            border-color: #9ca3af;
+            color: #0f172a !important;
+            background-color: rgba(255, 255, 255, 0.6) !important;
             cursor: pointer;
-            transform: translateY(-1px);
         }
 
-        /* Estilo de la pestaña ACTIVA (Seleccionada) */
+        /* Pestaña ACTIVA (Seleccionada) */
         .stTabs [aria-selected="true"] {
-            background-color: #1e40af !important;
-            color: #ffffff !important;
-            border-color: #1e40af !important;
-            box-shadow: 0 4px 6px -1px rgba(30, 64, 175, 0.3), 0 2px 4px -1px rgba(30, 64, 175, 0.06) !important;
+            background-color: #ffffff !important;
+            color: #2563eb !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+            border: 1px solid #e2e8f0 !important;
         }
 
-        /* Desactivar línea roja por defecto de Streamlit debajo de las pestañas */
-        .stTabs [data-baseweb="tab-highlight"] {
-            background-color: transparent !important;
-        }
-
-        /* Badges / Leyendas */
+        /* Ajustes de Badges / Leyendas */
         .badge {
             padding: 6px 12px;
             border-radius: 6px;
-            font-weight: bold;
+            font-weight: 600;
             color: white;
             display: inline-block;
             margin-right: 6px;
-            font-size: 14px;
+            font-size: 13px;
         }
         .badge-red { background-color: #dc3545; }
         .badge-yellow { background-color: #f39c12; }
@@ -129,7 +129,7 @@ if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
-# CREACIÓN DE PESTAÑAS (TABS MEJORADAS)
+# CREACIÓN DE PESTAÑAS
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
     ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
@@ -738,7 +738,7 @@ with tab_rechazados:
           "Dias_Num_Umbrella"
       ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
 
-      # MÉTIRICAS DE ESTADO EN UMBRELLA
+      # MÉTRICAS DE ESTADO EN UMBRELLA
       c1, c2, c3, c4 = st.columns(4)
       c1.metric(
           "Total Rechazados",
