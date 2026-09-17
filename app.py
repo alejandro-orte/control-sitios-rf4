@@ -10,6 +10,78 @@ st.set_page_config(
     page_title="Control Semanal de Sitios", page_icon="📡", layout="wide"
 )
 
+# ==========================================
+# ESTILOS CSS PERSONALIZADOS (MEJORA DE PESTAÑAS / TABS)
+# ==========================================
+st.markdown(
+    """
+    <style>
+        /* Contenedor general de pestañas */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 12px;
+            background-color: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        /* Estilo base de cada pestaña (Inactiva) */
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            color: #4b5563;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 0px 24px;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* Efecto al pasar el cursor (Hover) */
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            border-color: #9ca3af;
+            cursor: pointer;
+            transform: translateY(-1px);
+        }
+
+        /* Estilo de la pestaña ACTIVA (Seleccionada) */
+        .stTabs [aria-selected="true"] {
+            background-color: #1e40af !important;
+            color: #ffffff !important;
+            border-color: #1e40af !important;
+            box-shadow: 0 4px 6px -1px rgba(30, 64, 175, 0.3), 0 2px 4px -1px rgba(30, 64, 175, 0.06) !important;
+        }
+
+        /* Desactivar línea roja por defecto de Streamlit debajo de las pestañas */
+        .stTabs [data-baseweb="tab-highlight"] {
+            background-color: transparent !important;
+        }
+
+        /* Badges / Leyendas */
+        .badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 14px;
+        }
+        .badge-red { background-color: #dc3545; }
+        .badge-yellow { background-color: #f39c12; }
+        .badge-green { background-color: #198754; }
+        .badge-gray { background-color: #6c757d; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.title("📡 Tablero de Control de Sitios")
 
 # ==========================================
@@ -57,7 +129,7 @@ if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
-# CREACIÓN DE PESTAÑAS
+# CREACIÓN DE PESTAÑAS (TABS MEJORADAS)
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
     ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
@@ -74,20 +146,6 @@ with tab_general:
 
   st.markdown(
       """
-    <style>
-        .badge {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: white;
-            display: inline-block;
-            margin-right: 5px;
-        }
-        .badge-red { background-color: #dc3545; }
-        .badge-yellow { background-color: #f39c12; }
-        .badge-green { background-color: #198754; }
-        .badge-gray { background-color: #6c757d; }
-    </style>
     <div style="margin-bottom: 20px;">
         <b>Leyenda de Condición (Sitios sin OnAir):</b> 
         <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
@@ -381,20 +439,6 @@ with tab_rechazados:
 
   st.markdown(
       """
-    <style>
-        .badge {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: white;
-            display: inline-block;
-            margin-right: 5px;
-        }
-        .badge-red { background-color: #dc3545; }
-        .badge-yellow { background-color: #f39c12; }
-        .badge-green { background-color: #198754; }
-        .badge-gray { background-color: #6c757d; }
-    </style>
     <div style="margin-bottom: 20px;">
         <b>Leyenda de Condición (Sitios Rechazados Umbrella):</b> 
         <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
