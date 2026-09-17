@@ -69,8 +69,7 @@ tab_general, tab_rechazados = st.tabs(
 # ==========================================
 with tab_general:
   st.write(
-      "Sincronización en tiempo real (Excluyendo"
-      " sitios en **PRODUCCIÓN**)."
+      "Sincronización en tiempo real (Excluyendo sitios en **PRODUCCIÓN**)."
   )
 
   st.markdown(
@@ -267,7 +266,6 @@ with tab_general:
           )
       )
 
-      # Reemplazamos 'OnAir' por 'FC Visita' en la lista de columnas ordenadas
       cols_ordenadas = [
           "Condición / Estado",
           "Días Transcurridos",
@@ -379,9 +377,7 @@ with tab_general:
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
 with tab_rechazados:
-  st.header(
-      "🚫 Registro de Sitios Rechazados Umbrella (Año 2026)"
-  )
+  st.header("🚫 Registro de Sitios Rechazados Umbrella (Año 2026)")
 
   if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
     st.warning(
@@ -529,9 +525,28 @@ with tab_rechazados:
         if not df_2026.empty:
           df_rechazados_clean = df_2026
 
+      # ==========================================
+      # CÁLCULO DE DÍAS TRANSCURRIDOS DESDE FECHA ESTADO
+      # ==========================================
+      if col_fecha_estado:
+        fechas_estado_dt = pd.to_datetime(
+            df_rechazados_clean[col_fecha_estado],
+            errors="coerce",
+            format="mixed",
+        )
+        fecha_actual_umb = pd.Timestamp.now().floor("d")
+
+        dias_calculados = (fecha_actual_umb - fechas_estado_dt).dt.days
+
+        df_rechazados_clean["Días Transcurridos"] = dias_calculados.apply(
+            lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado"
+        )
+      else:
+        df_rechazados_clean["Días Transcurridos"] = "Sin Fecha Estado"
+
       # Normalización visual de fechas
       for col in df_rechazados_clean.columns:
-        if "fecha" in str(col).lower():
+        if "fecha" in str(col).lower() and col != "Días Transcurridos":
           fecha_parsed = pd.to_datetime(
               df_rechazados_clean[col], errors="coerce", format="mixed"
           )
@@ -596,7 +611,13 @@ with tab_rechazados:
           df_rechazados_clean = df_rechazados_clean[mask_search]
 
       cols = list(df_rechazados_clean.columns)
-      prioridad = [col_sitio, col_estado, col_fecha_estado, col_uuid]
+      prioridad = [
+          col_sitio,
+          "Días Transcurridos",
+          col_estado,
+          col_fecha_estado,
+          col_uuid,
+      ]
       prioridad_existente = [c for c in prioridad if c and c in cols]
 
       for c in prioridad_existente:
@@ -611,7 +632,14 @@ with tab_rechazados:
 
       if not df_rechazados_clean.empty:
         st.dataframe(
-            df_rechazados_clean, use_container_width=True, hide_index=True
+            df_rechazados_clean,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Días Transcurridos": st.column_config.TextColumn(
+                    "Días Transcurridos", width="small"
+                )
+            },
         )
 
         csv_umbrella = df_rechazados_clean.to_csv(index=False).encode("utf-8")
