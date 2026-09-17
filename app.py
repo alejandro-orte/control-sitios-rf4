@@ -376,7 +376,8 @@ with tab_general:
 # ==========================================
 with tab_rechazados:
   st.header(
-      "🚫 Registro de Sitios Rechazados desde la pestaña Umbrella (Año 2026)"
+      "🚫 Registro de Sitios Rechazados Umbrella (Año 2026)
+      Nota: Sitio que no esta en el listado fue aprobado o no a iniciado el proceso ON AIR "
   )
 
   if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
