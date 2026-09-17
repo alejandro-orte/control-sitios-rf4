@@ -379,6 +379,33 @@ with tab_general:
 with tab_rechazados:
   st.header("🚫 Registro de Sitios Rechazados Umbrella (Año 2026)")
 
+  st.markdown(
+      """
+    <style>
+        .badge {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .badge-red { background-color: #dc3545; }
+        .badge-yellow { background-color: #f39c12; }
+        .badge-green { background-color: #198754; }
+        .badge-gray { background-color: #6c757d; }
+    </style>
+    <div style="margin-bottom: 20px;">
+        <b>Leyenda de Condición (Sitios Rechazados Umbrella):</b> 
+        <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
+        <span class="badge badge-yellow">⚠️ Alerta (8 - 15 días)</span> 
+        <span class="badge badge-green">✅ En Norma (< 8 días)</span> 
+        <span class="badge badge-gray">⏳ Sin Fecha Estado</span>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
   if SHEET_URL_UMBRELLA == "PEGA_AQUI_LA_URL_CSV_DE_LA_PESTAÑA_UMBRELLA":
     st.warning(
         "⚠️ Debes publicar la pestaña 'umbrella' en Google Sheets como CSV y"
@@ -526,7 +553,7 @@ with tab_rechazados:
           df_rechazados_clean = df_2026
 
       # ==========================================
-      # CÁLCULO DE DÍAS TRANSCURRIDOS DESDE FECHA ESTADO
+      # CÁLCULO DE DÍAS Y CLASIFICACIÓN DE ALERTAS
       # ==========================================
       if col_fecha_estado:
         fechas_estado_dt = pd.to_datetime(
@@ -535,18 +562,70 @@ with tab_rechazados:
             format="mixed",
         )
         fecha_actual_umb = pd.Timestamp.now().floor("d")
+        df_rechazados_clean["Dias_Num_Umbrella"] = (
+            fecha_actual_umb - fechas_estado_dt
+        ).dt.days
 
-        dias_calculados = (fecha_actual_umb - fechas_estado_dt).dt.days
+        def clasificar_condicion_umbrella(row):
+          dias = row["Dias_Num_Umbrella"]
+          if pd.isna(dias):
+            return "⏳ Sin Fecha Estado"
+          elif dias >= 16:
+            return "🚨 Crítico (>= 16 días)"
+          elif dias >= 8:
+            return "⚠️ Alerta (8 - 15 días)"
+          elif dias >= 0:
+            return "✅ En Norma (< 8 días)"
+          else:
+            return "Fecha Futura / Error"
 
-        df_rechazados_clean["Días Transcurridos"] = dias_calculados.apply(
-            lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado"
+        df_rechazados_clean["Condición / Estado"] = df_rechazados_clean.apply(
+            clasificar_condicion_umbrella, axis=1
         )
       else:
-        df_rechazados_clean["Días Transcurridos"] = "Sin Fecha Estado"
+        df_rechazados_clean["Dias_Num_Umbrella"] = pd.NA
+        df_rechazados_clean["Condición / Estado"] = "⏳ Sin Fecha Estado"
+
+      prioridad_map_umb = {
+          "🚨 Crítico (>= 16 días)": 1,
+          "⚠️ Alerta (8 - 15 días)": 2,
+          "✅ En Norma (< 8 días)": 3,
+          "⏳ Sin Fecha Estado": 4,
+          "Fecha Futura / Error": 5,
+      }
+      df_rechazados_clean["Prioridad"] = df_rechazados_clean[
+          "Condición / Estado"
+      ].map(prioridad_map_umb)
+      df_rechazados_clean = df_rechazados_clean.sort_values(
+          by=["Prioridad", "Dias_Num_Umbrella"], ascending=[True, False]
+      )
+
+      # Filtro opcional por Condición en la barra lateral
+      st.sidebar.markdown("---")
+      st.sidebar.header("🔍 Filtros Umbrella")
+      conds_umb = ["Todos"] + sorted(
+          list(
+              df_rechazados_clean["Condición / Estado"]
+              .dropna()
+              .astype(str)
+              .unique()
+          )
+      )
+      cond_umb_sel = st.sidebar.selectbox(
+          "Filtrar Umbrella por Condición", conds_umb
+      )
+
+      if cond_umb_sel != "Todos":
+        df_rechazados_clean = df_rechazados_clean[
+            df_rechazados_clean["Condición / Estado"] == cond_umb_sel
+        ]
 
       # Normalización visual de fechas
       for col in df_rechazados_clean.columns:
-        if "fecha" in str(col).lower() and col != "Días Transcurridos":
+        if "fecha" in str(col).lower() and col not in [
+            "Días Transcurridos",
+            "Condición / Estado",
+        ]:
           fecha_parsed = pd.to_datetime(
               df_rechazados_clean[col], errors="coerce", format="mixed"
           )
@@ -610,10 +689,46 @@ with tab_rechazados:
           )
           df_rechazados_clean = df_rechazados_clean[mask_search]
 
+      # Crear columna visual de Días Transcurridos
+      df_rechazados_clean["Días Transcurridos"] = df_rechazados_clean[
+          "Dias_Num_Umbrella"
+      ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
+
+      # MÉTIRICAS DE ESTADO EN UMBRELLA
+      c1, c2, c3, c4 = st.columns(4)
+      c1.metric(
+          "Total Rechazados",
+          len(df_rechazados_clean),
+      )
+      c2.metric(
+          "🚨 Críticos (>=16d)",
+          (
+              df_rechazados_clean["Condición / Estado"]
+              == "🚨 Crítico (>= 16 días)"
+          ).sum(),
+      )
+      c3.metric(
+          "⚠️ Alerta (8-15d)",
+          (
+              df_rechazados_clean["Condición / Estado"]
+              == "⚠️ Alerta (8 - 15 días)"
+          ).sum(),
+      )
+      c4.metric(
+          "✅ En Norma (<8d)",
+          (
+              df_rechazados_clean["Condición / Estado"]
+              == "✅ En Norma (< 8 días)"
+          ).sum(),
+      )
+
+      st.markdown("---")
+
       cols = list(df_rechazados_clean.columns)
       prioridad = [
-          col_sitio,
+          "Condición / Estado",
           "Días Transcurridos",
+          col_sitio,
           col_estado,
           col_fecha_estado,
           col_uuid,
@@ -623,26 +738,53 @@ with tab_rechazados:
       for c in prioridad_existente:
         cols.remove(c)
 
-      df_rechazados_clean = df_rechazados_clean[prioridad_existente + cols]
+      # Eliminar auxiliares de ordenamiento de las columnas mostradas
+      for col_aux in ["Dias_Num_Umbrella", "Prioridad"]:
+        if col_aux in cols:
+          cols.remove(col_aux)
 
-      st.metric(
-          label="Total Registros Filtrados en Umbrella (2026)",
-          value=len(df_rechazados_clean),
+      df_rechazados_final = df_rechazados_clean[prioridad_existente + cols]
+
+      def colorear_condicion_umb(val):
+        if val == "🚨 Crítico (>= 16 días)":
+          return (
+              "background-color: #f8d7da; color: #842029; font-weight: bold;"
+          )
+        elif val == "⚠️ Alerta (8 - 15 días)":
+          return (
+              "background-color: #fff3cd; color: #664d03; font-weight: bold;"
+          )
+        elif val == "✅ En Norma (< 8 días)":
+          return (
+              "background-color: #d1e7dd; color: #0f5132; font-weight: bold;"
+          )
+        elif val == "⏳ Sin Fecha Estado":
+          return (
+              "background-color: #e2e3e5; color: #41464b; font-weight: bold;"
+          )
+        else:
+          return ""
+
+      styled_df_umb = df_rechazados_final.style.map(
+          colorear_condicion_umb, subset=["Condición / Estado"]
       )
 
-      if not df_rechazados_clean.empty:
+      if not df_rechazados_final.empty:
         st.dataframe(
-            df_rechazados_clean,
+            styled_df_umb,
             use_container_width=True,
             hide_index=True,
             column_config={
+                "Condición / Estado": st.column_config.TextColumn(
+                    "Condición / Estado", width="medium"
+                ),
                 "Días Transcurridos": st.column_config.TextColumn(
                     "Días Transcurridos", width="small"
-                )
+                ),
             },
         )
 
-        csv_umbrella = df_rechazados_clean.to_csv(index=False).encode("utf-8")
+        csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
         st.download_button(
             label="📥 Descargar Reporte Umbrella 2026 (CSV)",
             data=csv_umbrella,
