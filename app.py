@@ -11,70 +11,84 @@ st.set_page_config(
 )
 
 # ==========================================
-# ESTILOS CSS PERSONALIZADOS (BOTONES DE NAVEGACIÓN REORGANIZADOS)
+# ESTILOS CSS PERSONALIZADOS (NAVEGACIÓN CENTRADA Y ESTÉTICA)
 # ==========================================
 st.markdown(
     """
     <style>
-        /* Ocultar el label del radio button para la navegación */
+        /* Ocultar el label predeterminado del st.radio */
         div[data-testid="stRadio"] > label {
             display: none !important;
         }
 
-        /* Formatear el contenedor de Radio Buttons como barra flotante de pestañas */
-        div[data-testid="stRadio"] > div {
+        /* Centrar el contenedor general del selector de tableros */
+        div[data-testid="stRadio"] {
             display: flex !important;
-            flex-direction: row !important;
-            gap: 16px !important;
-            background-color: #f1f5f9 !important;
-            padding: 8px !important;
-            border-radius: 12px !important;
-            border: 1px solid #cbd5e1 !important;
-            margin-bottom: 25px !important;
-            width: fit-content !important;
+            justify-content: center !important;
+            width: 100% !important;
+            margin-top: 10px !important;
+            margin-bottom: 30px !important;
         }
 
-        /* Estilo de cada botón individual */
+        /* Contenedor tipo píldora (Segmented Control) */
+        div[data-testid="stRadio"] > div {
+            display: inline-flex !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 10px !important;
+            background-color: #f1f5f9 !important;
+            padding: 6px 10px !important;
+            border-radius: 9999px !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: inset 0px 1px 2px rgba(0, 0, 0, 0.04) !important;
+            width: auto !important;
+        }
+
+        /* Estilo base de cada botón individual */
         div[data-testid="stRadio"] label {
             background-color: #ffffff !important;
-            border: 1px solid #94a3b8 !important;
-            border-radius: 8px !important;
-            padding: 10px 24px !important;
-            font-size: 16px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 9999px !important;
+            padding: 10px 28px !important;
+            font-size: 15px !important;
             font-weight: 600 !important;
-            color: #1e293b !important;
+            color: #475569 !important;
             cursor: pointer !important;
-            transition: all 0.2s ease-in-out !important;
-            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05) !important;
-            display: flex !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05) !important;
+            display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             margin: 0 !important;
+            user-select: none !important;
         }
 
-        /* Ocultar el círculo nativo del radio button */
+        /* Ocultar el punto/círculo nativo de radio button */
         div[data-testid="stRadio"] label > div:first-child {
             display: none !important;
         }
 
-        /* Efecto al pasar el cursor por encima (Hover) */
+        /* Efecto al pasar el cursor (Hover) */
         div[data-testid="stRadio"] label:hover {
-            background-color: #e2e8f0 !important;
-            border-color: #475569 !important;
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            border-color: #94a3b8 !important;
             transform: translateY(-2px) !important;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.08) !important;
         }
 
-        /* Estilo del Botón Seleccionado / Activo */
+        /* Estilo del Botón SELECCIONADO / ACTIVO */
         div[data-testid="stRadio"] label:has(input:checked) {
-            background-color: #1d4ed8 !important;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
             color: #ffffff !important;
-            border-color: #1e40af !important;
+            border-color: #1d4ed8 !important;
             font-weight: 700 !important;
-            box-shadow: 0px 4px 12px rgba(29, 78, 216, 0.35) !important;
+            box-shadow: 0px 4px 14px rgba(37, 99, 235, 0.38) !important;
+            transform: translateY(-1px) !important;
         }
 
-        /* Badges / Leyendas */
+        /* Badges / Leyendas de estado */
         .badge {
             padding: 6px 12px;
             border-radius: 6px;
@@ -122,7 +136,7 @@ def cargar_datos(url):
 # ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
-  st.write("Ingresa la contraseña para actualizar informacion")
+  st.write("Ingresa la contraseña para actualizar información:")
   pwd_input = st.text_input("Contraseña", type="password")
 
   if st.button("Confirmar y Sincronizar", use_container_width=True):
@@ -140,7 +154,7 @@ if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
-# NAVEGACIÓN MODERNA ENTRE TABLEROS
+# NAVEGACIÓN CENTRADA Y ESTÉTICA ENTRE TABLEROS
 # ==========================================
 tab_seleccionada = st.radio(
     "Selecciona el tablero:",
