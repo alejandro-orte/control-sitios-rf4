@@ -7,10 +7,10 @@ import streamlit as st
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
 st.set_page_config(
-    page_title="Control Semanal de Sitios BSS", page_icon="📡", layout="wide"
+    page_title="Control Semanal de Sitios", page_icon="📡", layout="wide"
 )
 
-st.title("📡 Tablero de Control de Sitios BSS")
+st.title("📡 Tablero de Control de Sitios")
 
 # ==========================================
 # CONFIGURACIÓN DE URLS Y CONTRASEÑA
@@ -39,7 +39,7 @@ def cargar_datos(url):
 # ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
-  st.write("Ingresa la contraseña para refrescar el caché de Google Sheets:")
+  st.write("Ingresa la contraseña para refrescar el caché")
   pwd_input = st.text_input("Contraseña", type="password")
 
   if st.button("Confirmar y Sincronizar", use_container_width=True):
@@ -53,14 +53,14 @@ def modal_autenticacion():
 
 # Botón en la barra lateral que activa el modal
 st.sidebar.header("🔄 Sincronización")
-if st.sidebar.button("Actualizar datos desde Google Sheets"):
+if st.sidebar.button("Actualizar datos"):
   modal_autenticacion()
 
 # ==========================================
 # CREACIÓN DE PESTAÑAS
 # ==========================================
 tab_general, tab_rechazados = st.tabs(
-    ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"]
+    ["📋 General", "🚫 Sitios Rechazados (Umbrella)"]
 )
 
 
@@ -69,7 +69,7 @@ tab_general, tab_rechazados = st.tabs(
 # ==========================================
 with tab_general:
   st.write(
-      "Sincronización en tiempo real desde **Google Sheets** (Excluyendo"
+      "Sincronización en tiempo real (Excluyendo"
       " sitios en **PRODUCCIÓN**)."
   )
 
