@@ -98,15 +98,28 @@ st.markdown(
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        /* Contenedor estético para el filtro de región */
-        .filter-container {
-            background-color: #f8fafc;
+        /* Tarjeta contenedora estilizada para filtros */
+        .filter-card {
+            background-color: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 12px 18px;
-            margin-top: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0px 1px 2px rgba(0,0,0,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        /* Estilo moderno para las tarjetas de métricas */
+        div[data-testid="stMetric"] {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease-in-out;
+        }
+        div[data-testid="stMetric"]:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: #cbd5e1;
         }
 
         /* Badges / Leyendas de estado */
@@ -284,7 +297,7 @@ if tab_seleccionada == "📋 General BSS":
           by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
       )
 
-      # Filtros en la barra lateral (dejando Región fuera de aquí)
+      # Filtros en la barra lateral
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
 
@@ -336,6 +349,26 @@ if tab_seleccionada == "📋 General BSS":
             .str.contains(busqueda, case=False, na=False)
         ]
 
+      # ==========================================
+      # TÍTULO Y TARJETA ESTÉTICA DE FILTRO POR REGIONAL
+      # ==========================================
+      st.subheader("Lista de Sitios Pendientes")
+
+      st.markdown('<div class="filter-card">', unsafe_allow_html=True)
+      territorios = ["Todos"] + sorted(
+          list(df_filtrado["Territorio Comercial"].dropna().astype(str).unique())
+      )
+      territorio_sel = st.selectbox(
+          "🌐 **Filtrar por Regional**", territorios, key="filtro_region_main"
+      )
+      st.markdown("</div>", unsafe_allow_html=True)
+
+      if territorio_sel != "Todos":
+        df_filtrado = df_filtrado[
+            df_filtrado["Territorio Comercial"] == territorio_sel
+        ]
+
+      # Métricas con diseño mejorado
       col1, col2, col3, col4, col5 = st.columns(5)
       col1.metric("Total Sitios Pendientes", len(df_filtrado))
       col2.metric(
@@ -355,29 +388,7 @@ if tab_seleccionada == "📋 General BSS":
           (df_filtrado["Condición / Estado"] == "Completado").sum(),
       )
 
-      st.markdown("---")
-
-      # ==========================================
-      # TÍTULO Y FILTRAR POR REGIÓN ARRIBA DE LA TABLA
-      # ==========================================
-      st.subheader("Lista de Sitios Pendientes")
-
-      with st.container():
-        st.markdown(
-            '<div class="filter-container">', unsafe_allow_html=True
-        )
-        territorios = ["Todos"] + sorted(
-            list(df_filtrado["Territorio Comercial"].dropna().astype(str).unique())
-        )
-        territorio_sel = st.selectbox(
-            "🌐 **Filtrar por Región**", territorios, key="filtro_region_main"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-      if territorio_sel != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado["Territorio Comercial"] == territorio_sel
-        ]
+      st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
       df_display = df_filtrado.copy()
       df_display["Días Transcurridos"] = df_display[
@@ -388,11 +399,17 @@ if tab_seleccionada == "📋 General BSS":
           )
       )
 
+      # Renombrar Territorio Comercial a Regional para mostrarse en la tabla
+      if "Territorio Comercial" in df_display.columns:
+        df_display = df_display.rename(
+            columns={"Territorio Comercial": "Regional"}
+        )
+
       cols_ordenadas = [
           "Site Name",
           "Condición / Estado",
           "Días Transcurridos",
-          "Territorio Comercial",
+          "Regional",
           "Integracion",
           "FC Visita",
           "Estado Macro",
@@ -420,7 +437,7 @@ if tab_seleccionada == "📋 General BSS":
           ]
       ]
 
-      df_final = df_display[cols_existentes + otras_cols]
+      df_final = df_display[cols_existentes + outras_cols]
 
       def colorear_condicion(val):
         if val == "Crítico":
@@ -462,8 +479,8 @@ if tab_seleccionada == "📋 General BSS":
               "Días Transcurridos": st.column_config.TextColumn(
                   "Días Transcurridos", width="small"
               ),
-              "Territorio Comercial": st.column_config.TextColumn(
-                  "Territorio Comercial", width="medium"
+              "Regional": st.column_config.TextColumn(
+                  "Regional", width="medium"
               ),
               "FC Visita": st.column_config.TextColumn(
                   "FC Visita", width="medium"
