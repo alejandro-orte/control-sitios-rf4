@@ -5,7 +5,7 @@ import streamlit as st
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
-# ==========================================
+# =========================================
 st.set_page_config(
     page_title="Control Semanal de Sitios", page_icon="📡", layout="wide"
 )
