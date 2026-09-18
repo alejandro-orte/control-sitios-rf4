@@ -88,7 +88,7 @@ st.markdown(
             transform: translateY(-1px) !important;
         }
 
-        /* Tarjeta de Sincronización en Sidebar */
+        /* Tarjeta contenedora de Sincronización en Sidebar */
         .sync-card {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -96,6 +96,17 @@ st.markdown(
             padding: 16px;
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Contenedor estético para el filtro de región */
+        .filter-container {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.03);
         }
 
         /* Badges / Leyendas de estado */
@@ -273,22 +284,11 @@ if tab_seleccionada == "📋 General BSS":
           by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
       )
 
-      # ==========================================
-      # FILTRAR POR REGIÓN EN LA PARTE SUPERIOR
-      # ==========================================
-      territorios = ["Todos"] + sorted(
-          list(df_proc["Territorio Comercial"].dropna().astype(str).unique())
-      )
-      territorio_sel = st.selectbox("🌐 Filtrar por Región", territorios)
-
-      df_filtrado = df_proc.copy()
-      if territorio_sel != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado["Territorio Comercial"] == territorio_sel
-        ]
-
+      # Filtros en la barra lateral (dejando Región fuera de aquí)
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
+
+      df_filtrado = df_proc.copy()
 
       condiciones = ["Todos"] + sorted(
           list(df_filtrado["Condición / Estado"].dropna().astype(str).unique())
@@ -356,6 +356,28 @@ if tab_seleccionada == "📋 General BSS":
       )
 
       st.markdown("---")
+
+      # ==========================================
+      # TÍTULO Y FILTRAR POR REGIÓN ARRIBA DE LA TABLA
+      # ==========================================
+      st.subheader("Lista de Sitios Pendientes")
+
+      with st.container():
+        st.markdown(
+            '<div class="filter-container">', unsafe_allow_html=True
+        )
+        territorios = ["Todos"] + sorted(
+            list(df_filtrado["Territorio Comercial"].dropna().astype(str).unique())
+        )
+        territorio_sel = st.selectbox(
+            "🌐 **Filtrar por Región**", territorios, key="filtro_region_main"
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+      if territorio_sel != "Todos":
+        df_filtrado = df_filtrado[
+            df_filtrado["Territorio Comercial"] == territorio_sel
+        ]
 
       df_display = df_filtrado.copy()
       df_display["Días Transcurridos"] = df_display[
@@ -425,8 +447,6 @@ if tab_seleccionada == "📋 General BSS":
       styled_df = df_final.style.map(
           colorear_condicion, subset=["Condición / Estado"]
       )
-
-      st.subheader(f"Lista de Sitios Pendientes ({len(df_final)} mostrados)")
 
       st.dataframe(
           styled_df,
