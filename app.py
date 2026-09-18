@@ -108,18 +108,33 @@ st.markdown(
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
 
-        /* Estilo moderno para las tarjetas de métricas */
+        /* Centrar la información y mejorar diseño de las tarjetas de métricas */
         div[data-testid="stMetric"] {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
             padding: 16px 20px;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            text-align: center !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             transition: all 0.2s ease-in-out;
         }
         div[data-testid="stMetric"]:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             border-color: #cbd5e1;
+        }
+        div[data-testid="stMetric"] label {
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100%;
+        }
+        div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100%;
         }
 
         /* Badges / Leyendas de estado */
@@ -368,7 +383,7 @@ if tab_seleccionada == "📋 General BSS":
             df_filtrado["Territorio Comercial"] == territorio_sel
         ]
 
-      # Métricas con diseño mejorado
+      # Métricas centradas y estilizadas
       col1, col2, col3, col4, col5 = st.columns(5)
       col1.metric("Total Sitios Pendientes", len(df_filtrado))
       col2.metric(
@@ -437,7 +452,7 @@ if tab_seleccionada == "📋 General BSS":
           ]
       ]
 
-      df_final = df_display[cols_existentes + outras_cols]
+      df_final = df_display[cols_existentes + otras_cols]
 
       def colorear_condicion(val):
         if val == "Crítico":
