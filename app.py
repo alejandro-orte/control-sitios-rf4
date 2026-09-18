@@ -367,7 +367,6 @@ if tab_seleccionada == "📋 General BSS":
           )
       )
 
-      # ORDEN: Site Name primero, luego Condición / Estado y Días Transcurridos
       cols_ordenadas = [
           "Site Name",
           "Condición / Estado",
@@ -400,7 +399,8 @@ if tab_seleccionada == "📋 General BSS":
           ]
       ]
 
-      df_final = df_display[cols_existentes + outras_cols]
+      # CORREGIDO: Se cambió 'outras_cols' por 'otras_cols'
+      df_final = df_display[cols_existentes + otras_cols]
 
       def colorear_condicion(val):
         if val == "Crítico":
