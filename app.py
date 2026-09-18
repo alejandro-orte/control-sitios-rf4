@@ -5,7 +5,7 @@ import streamlit as st
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
-# =========================================
+# ==========================================
 st.set_page_config(
     page_title="Control Semanal de Sitios", page_icon="📡", layout="wide"
 )
@@ -86,6 +86,26 @@ st.markdown(
             font-weight: 700 !important;
             box-shadow: 0px 4px 14px rgba(37, 99, 235, 0.38) !important;
             transform: translateY(-1px) !important;
+        }
+
+        /* ==========================================
+           BARRAS DE DESPLAZAMIENTO (SCROLLBARS) NOTORIAS
+           ========================================== */
+        ::-webkit-scrollbar {
+            width: 14px !important;
+            height: 14px !important;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0 !important;
+            border-radius: 7px !important;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #64748b !important;
+            border-radius: 7px !important;
+            border: 3px solid #e2e8f0 !important;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569 !important;
         }
 
         /* Tarjeta contenedora de Sincronización en Sidebar */
@@ -376,7 +396,6 @@ if tab_seleccionada == "📋 General BSS":
             df_filtrado["Territorio Comercial"] == territorio_sel
         ]
 
-      # Métricas con colores personalizados mediante tarjetas HTML robustas
       col1, col2, col3, col4, col5 = st.columns(5)
       with col1:
         render_tarjeta_metrica(
