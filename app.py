@@ -273,17 +273,29 @@ if tab_seleccionada == "📋 General BSS":
           by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
       )
 
+      # ==========================================
+      # FILTRAR POR REGIÓN EN LA PARTE SUPERIOR
+      # ==========================================
+      territorios = ["Todos"] + sorted(
+          list(df_proc["Territorio Comercial"].dropna().astype(str).unique())
+      )
+      territorio_sel = st.selectbox("🌐 Filtrar por Región", territorios)
+
+      df_filtrado = df_proc.copy()
+      if territorio_sel != "Todos":
+        df_filtrado = df_filtrado[
+            df_filtrado["Territorio Comercial"] == territorio_sel
+        ]
+
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
 
       condiciones = ["Todos"] + sorted(
-          list(df_proc["Condición / Estado"].dropna().astype(str).unique())
+          list(df_filtrado["Condición / Estado"].dropna().astype(str).unique())
       )
       condicion_sel = st.sidebar.selectbox(
           "Filtrar por Condición / Alerta", condiciones
       )
-
-      df_filtrado = df_proc.copy()
       if condicion_sel != "Todos":
         df_filtrado = df_filtrado[
             df_filtrado["Condición / Estado"] == condicion_sel
@@ -295,19 +307,6 @@ if tab_seleccionada == "📋 General BSS":
       proyecto_sel = st.sidebar.selectbox("Filtrar por Proyecto", proyectos)
       if proyecto_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Proyecto"] == proyecto_sel]
-
-      territorios = ["Todos"] + sorted(
-          list(
-              df_filtrado["Territorio Comercial"].dropna().astype(str).unique()
-          )
-      )
-      territorio_sel = st.sidebar.selectbox(
-          "Filtrar por Territorio Comercial", territorios
-      )
-      if territorio_sel != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado["Territorio Comercial"] == territorio_sel
-        ]
 
       contratistas = ["Todos"] + sorted(
           list(df_filtrado["SS IMP"].dropna().astype(str).unique())
@@ -399,7 +398,6 @@ if tab_seleccionada == "📋 General BSS":
           ]
       ]
 
-      # CORREGIDO: Se cambió 'outras_cols' por 'otras_cols'
       df_final = df_display[cols_existentes + otras_cols]
 
       def colorear_condicion(val):
