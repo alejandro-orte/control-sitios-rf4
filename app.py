@@ -108,72 +108,6 @@ st.markdown(
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
 
-        /* Estilos base compartidos para las tarjetas de métricas */
-        div[data-testid="stMetric"] {
-            padding: 16px 20px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            text-align: center !important;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease-in-out;
-        }
-        div[data-testid="stMetric"]:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
-        }
-        div[data-testid="stMetric"] label {
-            justify-content: center !important;
-            text-align: center !important;
-            width: 100%;
-        }
-        div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            justify-content: center !important;
-            text-align: center !important;
-            width: 100%;
-        }
-
-        /* Colores de fondo personalizados por tarjeta de métrica (General y Umbrella) */
-        /* Columna 1: Total / Neutral */
-        div[data-testid="column"]:nth-of-type(1) div[data-testid="stMetric"] {
-            background-color: #f8fafc;
-            border: 1px solid #cbd5e1;
-        }
-        /* Columna 2: Críticos (Rojo Suave) */
-        div[data-testid="column"]:nth-of-type(2) div[data-testid="stMetric"] {
-            background-color: #fdf2f2;
-            border: 1px solid #f8b4b4;
-        }
-        div[data-testid="column"]:nth-of-type(2) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            color: #9b2c2c !important;
-        }
-        /* Columna 3: Alerta (Amarillo / Naranja Suave) */
-        div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] {
-            background-color: #fffaf0;
-            border: 1px solid #fbd38d;
-        }
-        div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            color: #9c4221 !important;
-        }
-        /* Columna 4: En Norma (Verde Suave) */
-        div[data-testid="column"]:nth-of-type(4) div[data-testid="stMetric"] {
-            background-color: #f0fff4;
-            border: 1px solid #9ae6b4;
-        }
-        div[data-testid="column"]:nth-of-type(4) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            color: #22543d !important;
-        }
-        /* Columna 5: Completados (Azul Suave) */
-        div[data-testid="column"]:nth-of-type(5) div[data-testid="stMetric"] {
-            background-color: #ebf8ff;
-            border: 1px solid #90cdf4;
-        }
-        div[data-testid="column"]:nth-of-type(5) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            color: #2b6cb0 !important;
-        }
-
         /* Badges / Leyendas de estado */
         .badge {
             padding: 6px 12px;
@@ -192,6 +126,28 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+def render_tarjeta_metrica(label, value, bg_color, border_color, text_color):
+  st.markdown(
+      f"""
+        <div style="
+            background-color: {bg_color};
+            border: 1px solid {border_color};
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease-in-out;
+            margin-bottom: 10px;
+        ">
+            <div style="font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{label}</div>
+            <div style="font-size: 30px; font-weight: 700; color: {text_color};">{value}</div>
+        </div>
+        """,
+      unsafe_allow_html=True,
+  )
+
 
 st.title("📡 Tablero de Control de Sitios")
 
@@ -420,25 +376,48 @@ if tab_seleccionada == "📋 General BSS":
             df_filtrado["Territorio Comercial"] == territorio_sel
         ]
 
-      # Métricas con colores adaptados
+      # Métricas con colores personalizados mediante tarjetas HTML robustas
       col1, col2, col3, col4, col5 = st.columns(5)
-      col1.metric("Total Sitios Pendientes", len(df_filtrado))
-      col2.metric(
-          "Críticos",
-          (df_filtrado["Condición / Estado"] == "Crítico").sum(),
-      )
-      col3.metric(
-          "Alerta",
-          (df_filtrado["Condición / Estado"] == "Alerta").sum(),
-      )
-      col4.metric(
-          "En Norma",
-          (df_filtrado["Condición / Estado"] == "En Norma").sum(),
-      )
-      col5.metric(
-          "Completados",
-          (df_filtrado["Condición / Estado"] == "Completado").sum(),
-      )
+      with col1:
+        render_tarjeta_metrica(
+            "Total Sitios Pendientes",
+            len(df_filtrado),
+            "#f8fafc",
+            "#cbd5e1",
+            "#0f172a",
+        )
+      with col2:
+        render_tarjeta_metrica(
+            "Críticos",
+            (df_filtrado["Condición / Estado"] == "Crítico").sum(),
+            "#fdf2f2",
+            "#f8b4b4",
+            "#9b2c2c",
+        )
+      with col3:
+        render_tarjeta_metrica(
+            "Alerta",
+            (df_filtrado["Condición / Estado"] == "Alerta").sum(),
+            "#fffaf0",
+            "#fbd38d",
+            "#9c4221",
+        )
+      with col4:
+        render_tarjeta_metrica(
+            "En Norma",
+            (df_filtrado["Condición / Estado"] == "En Norma").sum(),
+            "#f0fff4",
+            "#9ae6b4",
+            "#22543d",
+        )
+      with col5:
+        render_tarjeta_metrica(
+            "Completados",
+            (df_filtrado["Condición / Estado"] == "Completado").sum(),
+            "#ebf8ff",
+            "#90cdf4",
+            "#2b6cb0",
+        )
 
       st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
@@ -451,7 +430,6 @@ if tab_seleccionada == "📋 General BSS":
           )
       )
 
-      # Renombrar Territorio Comercial a Regional para mostrarse en la tabla
       if "Territorio Comercial" in df_display.columns:
         df_display = df_display.rename(
             columns={"Territorio Comercial": "Regional"}
@@ -854,22 +832,38 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
 
       c1, c2, c3, c4 = st.columns(4)
-      c1.metric(
-          "Total Rechazados",
-          len(df_rechazados_clean),
-      )
-      c2.metric(
-          "Críticos",
-          (df_rechazados_clean["Condición / Estado"] == "Crítico").sum(),
-      )
-      c3.metric(
-          "Alerta",
-          (df_rechazados_clean["Condición / Estado"] == "Alerta").sum(),
-      )
-      c4.metric(
-          "En Norma",
-          (df_rechazados_clean["Condición / Estado"] == "En Norma").sum(),
-      )
+      with c1:
+        render_tarjeta_metrica(
+            "Total Rechazados",
+            len(df_rechazados_clean),
+            "#f8fafc",
+            "#cbd5e1",
+            "#0f172a",
+        )
+      with c2:
+        render_tarjeta_metrica(
+            "Críticos",
+            (df_rechazados_clean["Condición / Estado"] == "Crítico").sum(),
+            "#fdf2f2",
+            "#f8b4b4",
+            "#9b2c2c",
+        )
+      with c3:
+        render_tarjeta_metrica(
+            "Alerta",
+            (df_rechazados_clean["Condición / Estado"] == "Alerta").sum(),
+            "#fffaf0",
+            "#fbd38d",
+            "#9c4221",
+        )
+      with c4:
+        render_tarjeta_metrica(
+            "En Norma",
+            (df_rechazados_clean["Condición / Estado"] == "En Norma").sum(),
+            "#f0fff4",
+            "#9ae6b4",
+            "#22543d",
+        )
 
       st.markdown("---")
 
