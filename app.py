@@ -108,10 +108,8 @@ st.markdown(
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
 
-        /* Centrar la información y mejorar diseño de las tarjetas de métricas */
+        /* Estilos base compartidos para las tarjetas de métricas */
         div[data-testid="stMetric"] {
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
             padding: 16px 20px;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -124,7 +122,7 @@ st.markdown(
         }
         div[data-testid="stMetric"]:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-color: #cbd5e1;
+            transform: translateY(-2px);
         }
         div[data-testid="stMetric"] label {
             justify-content: center !important;
@@ -135,6 +133,45 @@ st.markdown(
             justify-content: center !important;
             text-align: center !important;
             width: 100%;
+        }
+
+        /* Colores de fondo personalizados por tarjeta de métrica (General y Umbrella) */
+        /* Columna 1: Total / Neutral */
+        div[data-testid="column"]:nth-of-type(1) div[data-testid="stMetric"] {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+        }
+        /* Columna 2: Críticos (Rojo Suave) */
+        div[data-testid="column"]:nth-of-type(2) div[data-testid="stMetric"] {
+            background-color: #fdf2f2;
+            border: 1px solid #f8b4b4;
+        }
+        div[data-testid="column"]:nth-of-type(2) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            color: #9b2c2c !important;
+        }
+        /* Columna 3: Alerta (Amarillo / Naranja Suave) */
+        div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] {
+            background-color: #fffaf0;
+            border: 1px solid #fbd38d;
+        }
+        div[data-testid="column"]:nth-of-type(3) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            color: #9c4221 !important;
+        }
+        /* Columna 4: En Norma (Verde Suave) */
+        div[data-testid="column"]:nth-of-type(4) div[data-testid="stMetric"] {
+            background-color: #f0fff4;
+            border: 1px solid #9ae6b4;
+        }
+        div[data-testid="column"]:nth-of-type(4) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            color: #22543d !important;
+        }
+        /* Columna 5: Completados (Azul Suave) */
+        div[data-testid="column"]:nth-of-type(5) div[data-testid="stMetric"] {
+            background-color: #ebf8ff;
+            border: 1px solid #90cdf4;
+        }
+        div[data-testid="column"]:nth-of-type(5) div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            color: #2b6cb0 !important;
         }
 
         /* Badges / Leyendas de estado */
@@ -383,7 +420,7 @@ if tab_seleccionada == "📋 General BSS":
             df_filtrado["Territorio Comercial"] == territorio_sel
         ]
 
-      # Métricas centradas y estilizadas
+      # Métricas con colores adaptados
       col1, col2, col3, col4, col5 = st.columns(5)
       col1.metric("Total Sitios Pendientes", len(df_filtrado))
       col2.metric(
