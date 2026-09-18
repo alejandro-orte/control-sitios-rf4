@@ -131,19 +131,14 @@ SHEET_URL_UMBRELLA = st.secrets.get(
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv",
 )
 
-# Contraseña para la actualización manual
 PASSWORD_CORRECTA = st.secrets.get("SYNC_PASSWORD", "admin123")
 
 
-# Cargar datos descartando caché automáticamente cada 60 segundos
 @st.cache_data(ttl=60)
 def cargar_datos(url):
   return pd.read_csv(url)
 
 
-# ==========================================
-# MODAL CON CONTRASEÑA PARA ACTUALIZAR
-# ==========================================
 @st.dialog("🔐 Confirmación requerida")
 def modal_autenticacion():
   st.write("Ingresa la contraseña para actualizar información:")
@@ -158,9 +153,6 @@ def modal_autenticacion():
       st.error("❌ Contraseña incorrecta. Intenta nuevamente.")
 
 
-# ==========================================
-# BARRA LATERAL MEJORADA (SIDEBAR)
-# ==========================================
 with st.sidebar:
   st.markdown(
       """
@@ -179,9 +171,6 @@ with st.sidebar:
   if st.button("🔄 Actualizar Datos Ahora", use_container_width=True):
     modal_autenticacion()
 
-# ==========================================
-# NAVEGACIÓN CENTRADA Y ESTÉTICA ENTRE TABLEROS
-# ==========================================
 tab_seleccionada = st.radio(
     "Selecciona el tablero:",
     ["📋 General BSS", "🚫 Sitios Rechazados (Umbrella)"],
@@ -202,10 +191,10 @@ if tab_seleccionada == "📋 General BSS":
       """
     <div style="margin-bottom: 20px;">
         <b>Leyenda de Condición (Sitios sin OnAir):</b> 
-        <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
-        <span class="badge badge-yellow">⚠️ Alerta (8 - 15 días)</span> 
-        <span class="badge badge-green">✅ En Norma (< 8 días)</span> 
-        <span class="badge badge-gray">⏳ Pendiente Integración</span>
+        <span class="badge badge-red">Crítico</span> 
+        <span class="badge badge-yellow">Alerta</span> 
+        <span class="badge badge-green">En Norma</span> 
+        <span class="badge badge-gray">Pendiente Integración</span>
     </div>
     """,
       unsafe_allow_html=True,
@@ -255,15 +244,15 @@ if tab_seleccionada == "📋 General BSS":
 
       def clasificar_condicion(row):
         if pd.notna(row["Fecha_OnAir_DT"]):
-          return "🎉 Completado / OnAir"
+          return "Completado"
         elif pd.isna(row["Fecha_Integracion_DT"]):
-          return "⏳ Pendiente Integración"
+          return "Pendiente Integración"
         elif row["Dias_Desde_Integracion"] >= 16:
-          return "🚨 Crítico (>= 16 días)"
+          return "Crítico"
         elif row["Dias_Desde_Integracion"] >= 8:
-          return "⚠️ Alerta (8 - 15 días)"
+          return "Alerta"
         elif row["Dias_Desde_Integracion"] >= 0:
-          return "✅ En Norma (< 8 días)"
+          return "En Norma"
         else:
           return "Fecha Futura / Error"
 
@@ -272,11 +261,11 @@ if tab_seleccionada == "📋 General BSS":
       )
 
       prioridad_map = {
-          "🚨 Crítico (>= 16 días)": 1,
-          "⚠️ Alerta (8 - 15 días)": 2,
-          "✅ En Norma (< 8 días)": 3,
-          "⏳ Pendiente Integración": 4,
-          "🎉 Completado / OnAir": 5,
+          "Crítico": 1,
+          "Alerta": 2,
+          "En Norma": 3,
+          "Pendiente Integración": 4,
+          "Completado": 5,
           "Fecha Futura / Error": 6,
       }
       df_proc["Prioridad"] = df_proc["Condición / Estado"].map(prioridad_map)
@@ -351,20 +340,20 @@ if tab_seleccionada == "📋 General BSS":
       col1, col2, col3, col4, col5 = st.columns(5)
       col1.metric("Total Sitios Pendientes", len(df_filtrado))
       col2.metric(
-          "🚨 Críticos (>=16d)",
-          (df_filtrado["Condición / Estado"] == "🚨 Crítico (>= 16 días)").sum(),
+          "Críticos",
+          (df_filtrado["Condición / Estado"] == "Crítico").sum(),
       )
       col3.metric(
-          "⚠️ Alerta (8-15d)",
-          (df_filtrado["Condición / Estado"] == "⚠️ Alerta (8 - 15 días)").sum(),
+          "Alerta",
+          (df_filtrado["Condición / Estado"] == "Alerta").sum(),
       )
       col4.metric(
-          "✅ En Norma (<8d)",
-          (df_filtrado["Condición / Estado"] == "✅ En Norma (< 8 días)").sum(),
+          "En Norma",
+          (df_filtrado["Condición / Estado"] == "En Norma").sum(),
       )
       col5.metric(
-          "🎉 OnAir / Completado",
-          (df_filtrado["Condición / Estado"] == "🎉 Completado / OnAir").sum(),
+          "Completados",
+          (df_filtrado["Condición / Estado"] == "Completado").sum(),
       )
 
       st.markdown("---")
@@ -378,10 +367,11 @@ if tab_seleccionada == "📋 General BSS":
           )
       )
 
+      # ORDEN: Site Name primero, luego Condición / Estado y Días Transcurridos
       cols_ordenadas = [
+          "Site Name",
           "Condición / Estado",
           "Días Transcurridos",
-          "Site Name",
           "Territorio Comercial",
           "Integracion",
           "FC Visita",
@@ -410,26 +400,26 @@ if tab_seleccionada == "📋 General BSS":
           ]
       ]
 
-      df_final = df_display[cols_existentes + otras_cols]
+      df_final = df_display[cols_existentes + outras_cols]
 
       def colorear_condicion(val):
-        if val == "🚨 Crítico (>= 16 días)":
+        if val == "Crítico":
           return (
               "background-color: #f8d7da; color: #842029; font-weight: bold;"
           )
-        elif val == "⚠️ Alerta (8 - 15 días)":
+        elif val == "Alerta":
           return (
               "background-color: #fff3cd; color: #664d03; font-weight: bold;"
           )
-        elif val == "✅ En Norma (< 8 días)":
+        elif val == "En Norma":
           return (
               "background-color: #d1e7dd; color: #0f5132; font-weight: bold;"
           )
-        elif val == "⏳ Pendiente Integración":
+        elif val == "Pendiente Integración":
           return (
               "background-color: #e2e3e5; color: #41464b; font-weight: bold;"
           )
-        elif val == "🎉 Completado / OnAir":
+        elif val == "Completado":
           return "background-color: #cff4fc; color: #055160;"
         else:
           return ""
@@ -445,14 +435,14 @@ if tab_seleccionada == "📋 General BSS":
           use_container_width=True,
           hide_index=True,
           column_config={
+              "Site Name": st.column_config.TextColumn(
+                  "Site Name", width="medium", pinned=True
+              ),
               "Condición / Estado": st.column_config.TextColumn(
                   "Condición / Estado", width="medium"
               ),
               "Días Transcurridos": st.column_config.TextColumn(
                   "Días Transcurridos", width="small"
-              ),
-              "Site Name": st.column_config.TextColumn(
-                  "Site Name", width="medium"
               ),
               "Territorio Comercial": st.column_config.TextColumn(
                   "Territorio Comercial", width="medium"
@@ -495,10 +485,10 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       """
     <div style="margin-bottom: 20px;">
         <b>Leyenda de Condición (Sitios Rechazados Umbrella):</b> 
-        <span class="badge badge-red">🚨 Crítico (>= 16 días)</span> 
-        <span class="badge badge-yellow">⚠️ Alerta (8 - 15 días)</span> 
-        <span class="badge badge-green">✅ En Norma (< 8 días)</span> 
-        <span class="badge badge-gray">⏳ Sin Fecha Estado</span>
+        <span class="badge badge-red">Crítico</span> 
+        <span class="badge badge-yellow">Alerta</span> 
+        <span class="badge badge-green">En Norma</span> 
+        <span class="badge badge-gray">Sin Fecha Estado</span>
     </div>
     """,
       unsafe_allow_html=True,
@@ -513,7 +503,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-      # 1. Identificar dinámicamente la columna de Estado
       col_estado = None
       for col in df_umbrella.columns:
         col_clean = str(col).strip().lower().replace("_", " ")
@@ -527,7 +516,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           col_estado = col
           break
 
-      # 2. Identificar la columna de Nombre de Sitio e ID/UUID
       col_sitio = None
       for col in df_umbrella.columns:
         col_norm = str(col).strip().lower().replace("_", " ")
@@ -547,7 +535,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           col_uuid = col
           break
 
-      # 3. LÓGICA DE EXCLUSIÓN:
       col_agrupador = col_uuid if col_uuid else col_sitio
 
       if col_estado and col_agrupador:
@@ -575,7 +562,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       else:
         df_rechazados = df_umbrella.copy()
 
-      # 4. Términos a eliminar
       terminos_a_eliminar = [
           "secuencial",
           "nombre flujo",
@@ -630,7 +616,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           columns=cols_para_drop, errors="ignore"
       ).copy()
 
-      # Detectar la columna de fecha de estado
       col_fecha_estado = None
       for col in df_rechazados_clean.columns:
         col_limpia = str(col).strip().lower().replace("_", " ")
@@ -638,7 +623,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           col_fecha_estado = col
           break
 
-      # Filtrar año 2026
       if col_fecha_estado:
         fechas_dt = pd.to_datetime(
             df_rechazados_clean[col_fecha_estado],
@@ -649,9 +633,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
         if not df_2026.empty:
           df_rechazados_clean = df_2026
 
-      # ==========================================
-      # CÁLCULO DE DÍAS Y CLASIFICACIÓN DE ALERTAS
-      # ==========================================
       if col_fecha_estado:
         fechas_estado_dt = pd.to_datetime(
             df_rechazados_clean[col_fecha_estado],
@@ -666,13 +647,13 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
         def clasificar_condicion_umbrella(row):
           dias = row["Dias_Num_Umbrella"]
           if pd.isna(dias):
-            return "⏳ Sin Fecha Estado"
+            return "Sin Fecha Estado"
           elif dias >= 16:
-            return "🚨 Crítico (>= 16 días)"
+            return "Crítico"
           elif dias >= 8:
-            return "⚠️ Alerta (8 - 15 días)"
+            return "Alerta"
           elif dias >= 0:
-            return "✅ En Norma (< 8 días)"
+            return "En Norma"
           else:
             return "Fecha Futura / Error"
 
@@ -681,13 +662,13 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
         )
       else:
         df_rechazados_clean["Dias_Num_Umbrella"] = pd.NA
-        df_rechazados_clean["Condición / Estado"] = "⏳ Sin Fecha Estado"
+        df_rechazados_clean["Condición / Estado"] = "Sin Fecha Estado"
 
       prioridad_map_umb = {
-          "🚨 Crítico (>= 16 días)": 1,
-          "⚠️ Alerta (8 - 15 días)": 2,
-          "✅ En Norma (< 8 días)": 3,
-          "⏳ Sin Fecha Estado": 4,
+          "Crítico": 1,
+          "Alerta": 2,
+          "En Norma": 3,
+          "Sin Fecha Estado": 4,
           "Fecha Futura / Error": 5,
       }
       df_rechazados_clean["Prioridad"] = df_rechazados_clean[
@@ -697,7 +678,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           by=["Prioridad", "Dias_Num_Umbrella"], ascending=[True, False]
       )
 
-      # Filtro opcional por Condición en la barra lateral
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros Umbrella")
       conds_umb = ["Todos"] + sorted(
@@ -717,7 +697,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             df_rechazados_clean["Condición / Estado"] == cond_umb_sel
         ]
 
-      # Normalización visual de fechas
       for col in df_rechazados_clean.columns:
         if "fecha" in str(col).lower() and col not in [
             "Días Transcurridos",
@@ -735,9 +714,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
               {"nan": "", "None": "", "<NaT>": ""}
           )
 
-      # ==========================================
-      # BUSCADOR CON BOTÓN "BUSCAR"
-      # ==========================================
       col_input, col_btn = st.columns([4, 1])
 
       with col_input:
@@ -786,46 +762,35 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           )
           df_rechazados_clean = df_rechazados_clean[mask_search]
 
-      # Crear columna visual de Días Transcurridos
       df_rechazados_clean["Días Transcurridos"] = df_rechazados_clean[
           "Dias_Num_Umbrella"
       ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
 
-      # MÉTRICAS DE ESTADO EN UMBRELLA
       c1, c2, c3, c4 = st.columns(4)
       c1.metric(
           "Total Rechazados",
           len(df_rechazados_clean),
       )
       c2.metric(
-          "🚨 Críticos (>=16d)",
-          (
-              df_rechazados_clean["Condición / Estado"]
-              == "🚨 Crítico (>= 16 días)"
-          ).sum(),
+          "Críticos",
+          (df_rechazados_clean["Condición / Estado"] == "Crítico").sum(),
       )
       c3.metric(
-          "⚠️ Alerta (8-15d)",
-          (
-              df_rechazados_clean["Condición / Estado"]
-              == "⚠️ Alerta (8 - 15 días)"
-          ).sum(),
+          "Alerta",
+          (df_rechazados_clean["Condición / Estado"] == "Alerta").sum(),
       )
       c4.metric(
-          "✅ En Norma (<8d)",
-          (
-              df_rechazados_clean["Condición / Estado"]
-              == "✅ En Norma (< 8 días)"
-          ).sum(),
+          "En Norma",
+          (df_rechazados_clean["Condición / Estado"] == "En Norma").sum(),
       )
 
       st.markdown("---")
 
       cols = list(df_rechazados_clean.columns)
       prioridad = [
+          col_sitio,
           "Condición / Estado",
           "Días Transcurridos",
-          col_sitio,
           col_estado,
           col_fecha_estado,
           col_uuid,
@@ -835,7 +800,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       for c in prioridad_existente:
         cols.remove(c)
 
-      # Eliminar auxiliares de ordenamiento de las columnas mostradas
       for col_aux in ["Dias_Num_Umbrella", "Prioridad"]:
         if col_aux in cols:
           cols.remove(col_aux)
@@ -843,19 +807,19 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       df_rechazados_final = df_rechazados_clean[prioridad_existente + cols]
 
       def colorear_condicion_umb(val):
-        if val == "🚨 Crítico (>= 16 días)":
+        if val == "Crítico":
           return (
               "background-color: #f8d7da; color: #842029; font-weight: bold;"
           )
-        elif val == "⚠️ Alerta (8 - 15 días)":
+        elif val == "Alerta":
           return (
               "background-color: #fff3cd; color: #664d03; font-weight: bold;"
           )
-        elif val == "✅ En Norma (< 8 días)":
+        elif val == "En Norma":
           return (
               "background-color: #d1e7dd; color: #0f5132; font-weight: bold;"
           )
-        elif val == "⏳ Sin Fecha Estado":
+        elif val == "Sin Fecha Estado":
           return (
               "background-color: #e2e3e5; color: #41464b; font-weight: bold;"
           )
@@ -867,18 +831,24 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       )
 
       if not df_rechazados_final.empty:
+        col_config_umb = {
+            "Condición / Estado": st.column_config.TextColumn(
+                "Condición / Estado", width="medium"
+            ),
+            "Días Transcurridos": st.column_config.TextColumn(
+                "Días Transcurridos", width="small"
+            ),
+        }
+        if col_sitio:
+          col_config_umb[col_sitio] = st.column_config.TextColumn(
+              col_sitio, width="medium", pinned=True
+          )
+
         st.dataframe(
             styled_df_umb,
             use_container_width=True,
             hide_index=True,
-            column_config={
-                "Condición / Estado": st.column_config.TextColumn(
-                    "Condición / Estado", width="medium"
-                ),
-                "Días Transcurridos": st.column_config.TextColumn(
-                    "Días Transcurridos", width="small"
-                ),
-            },
+            column_config=col_config_umb,
         )
 
         csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
