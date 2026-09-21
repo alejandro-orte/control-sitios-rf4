@@ -636,11 +636,12 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             ~df_umbrella[col_agrupador].isin(sitios_aprobados)
         ].copy()
 
+        # NUEVO AJUSTE: Buscamos variaciones como "Rechazado" o "Rechazo" (para capturar "Rechazo 1 NOC")
         mask_rechazados = (
             df_umbrella_sin_aprobados[col_estado]
             .astype(str)
             .str.strip()
-            .str.contains("Rechazado", case=False, na=False)
+            .str.contains(r"Rechazado|Rechazo", case=False, na=False, regex=True)
         )
         df_rechazados = df_umbrella_sin_aprobados[mask_rechazados].copy()
       else:
