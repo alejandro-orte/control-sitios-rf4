@@ -619,10 +619,11 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                     col_uuid = col
                     break
 
-            col_agrupador = col_uuid if col_uuid else col_sitio
+            # Para evaluar el historial completo de un sitio, agrupamos por Nombre del Sitio si existe
+            col_agrupador = col_sitio if col_sitio else col_uuid
 
             if col_estado and col_agrupador:
-                # 1. Agrupamos todos los estados de cada sitio en listas (en minúsculas)
+                # 1. Agrupamos todos los estados del sitio en listas minúsculas
                 estados_por_sitio = (
                     df_umbrella.groupby(col_agrupador)[col_estado]
                     .apply(lambda x: [str(val).strip().lower() for val in x.dropna()])
@@ -630,34 +631,43 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                 )
 
                 sitios_validos = []
-                for sitio, estados in estados_por_sitio.items():
-                    tiene_aprobado = any("aprobado" in e for e in estados)
-                    tiene_rechazado = any("rechazado" in e or "rechazo" in e for e in estados)
+                sitios_excepcion_noc = set()
 
-                    tiene_rf_aprobado = any("rf aprobado" in e for e in estados)
-                    tiene_rechazo_noc = any("rechazo noc" in e or "rechazado noc" in e for e in estados)
-                    tiene_aprobado_noc = any("aprobado noc" in e for e in estados)
+                for sitio, estados in estados_por_sitio.items():
+                    # Comprobaciones flexibles (contienen subcadenas en cualquier posición)
+                    tiene_aprobado = any("aprob" in e for e in estados)
+                    tiene_rechazado = any("rechaz" in e for e in estados)
+
+                    tiene_rf_aprobado = any(("rf" in e and "aprob" in e) for e in estados)
+                    tiene_rechazo_noc = any(("noc" in e and "rechaz" in e) for e in estados)
+                    tiene_aprobado_noc = any(("noc" in e and "aprob" in e) for e in estados)
 
                     # Regla 1 (Clásica): Tiene algún rechazo y NINGÚN tipo de aprobado
                     condicion_normal = tiene_rechazado and not tiene_aprobado
 
-                    # Regla 2 (Nueva Excepción): Tiene RF Aprobado + Rechazo NOC, pero NO Aprobado NOC
+                    # Regla 2 (Excepción): Tiene RF Aprobado + Rechazo NOC, pero NO Aprobado NOC
                     condicion_excepcion = tiene_rf_aprobado and tiene_rechazo_noc and not tiene_aprobado_noc
 
                     if condicion_normal or condicion_excepcion:
                         sitios_validos.append(sitio)
+                        if condicion_excepcion:
+                            sitios_excepcion_noc.add(sitio)
 
-                # 2. Filtramos el DataFrame original para conservar los sitios que cumplen los criterios
+                # 2. Filtramos el DataFrame conservando los sitios que cumplen los criterios
                 df_umbrella_filtrado = df_umbrella[df_umbrella[col_agrupador].isin(sitios_validos)].copy()
 
-                # 3. Mantenemos las filas de rechazo para reflejar fecha y comentarios del rechazo
-                mask_filas_rechazo = (
-                    df_umbrella_filtrado[col_estado]
-                    .astype(str)
-                    .str.lower()
-                    .str.contains("rechazado|rechazo", na=False)
-                )
-                df_rechazados = df_umbrella_filtrado[mask_filas_rechazo].copy()
+                # 3. Mantenemos las filas de rechazo para mostrar fecha y comentario correctos
+                def es_fila_rechazo_deseada(row):
+                    sitio_val = row[col_agrupador]
+                    est_val = str(row[col_estado]).strip().lower()
+                    if sitio_val in sitios_excepcion_noc:
+                        # Si es un sitio de la excepción, priorizamos mostrar la fila de Rechazo NOC
+                        return ("noc" in est_val and "rechaz" in est_val) or ("rechaz" in est_val)
+                    else:
+                        return "rechaz" in est_val
+
+                mask_rechazados = df_umbrella_filtrado.apply(es_fila_rechazo_deseada, axis=1)
+                df_rechazados = df_umbrella_filtrado[mask_rechazados].copy()
             else:
                 df_rechazados = df_umbrella.copy()
 
