@@ -89,7 +89,7 @@ st.markdown(
         }
 
         /* ==========================================
-           BARRAS DE DESPLAZAMIENTO (SCROLLBARS) NOTORIAS
+           BARRAS DE DESPLAZAMIENTO (SCROLLBARS)
            ========================================== */
         ::-webkit-scrollbar {
             width: 14px !important;
@@ -108,7 +108,6 @@ st.markdown(
             background: #475569 !important;
         }
 
-        /* Tarjeta contenedora de Sincronización en Sidebar */
         .sync-card {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -118,7 +117,6 @@ st.markdown(
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        /* Tarjeta contenedora estilizada para filtros */
         .filter-card {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -128,7 +126,6 @@ st.markdown(
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
 
-        /* Badges / Leyendas de estado */
         .badge {
             padding: 6px 12px;
             border-radius: 6px;
@@ -377,9 +374,6 @@ if tab_seleccionada == "📋 General BSS":
                     .str.contains(busqueda, case=False, na=False)
                 ]
 
-            # ==========================================
-            # TÍTULO Y TARJETA ESTÉTICA DE FILTRO POR REGIONAL
-            # ==========================================
             st.subheader("Lista de Sitios Pendientes")
 
             st.markdown('<div class="filter-card">', unsafe_allow_html=True)
@@ -563,12 +557,12 @@ if tab_seleccionada == "📋 General BSS":
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
 elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
-    st.header("🚫 Registro de Sitios Rechazados Umbrella (Año 2026)")
+    st.header("🚫 Registro de Sitios Rechazados RF y NOC (Umbrella 2026)")
 
     st.markdown(
         """
     <div style="margin-bottom: 20px;">
-        <b>Leyenda de Condición (Sitios Rechazados Umbrella):</b> 
+        <b>Leyenda de Condición (Sitios Rechazados RF y NOC):</b> 
         <span class="badge badge-red">Crítico</span> 
         <span class="badge badge-yellow">Alerta</span> 
         <span class="badge badge-green">En Norma</span> 
@@ -619,55 +613,52 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                     col_uuid = col
                     break
 
-            # Para evaluar el historial completo de un sitio, agrupamos por Nombre del Sitio si existe
+            col_fecha_estado = None
+            for col in df_umbrella.columns:
+                col_limpia = str(col).strip().lower().replace("_", " ")
+                if "fecha estado" in col_limpia:
+                    col_fecha_estado = col
+                    break
+
             col_agrupador = col_sitio if col_sitio else col_uuid
 
             if col_estado and col_agrupador:
-                # 1. Agrupamos todos los estados del sitio en listas minúsculas
-                estados_por_sitio = (
-                    df_umbrella.groupby(col_agrupador)[col_estado]
-                    .apply(lambda x: [str(val).strip().lower() for val in x.dropna()])
-                    .to_dict()
+                df_umb_work = df_umbrella.copy()
+
+                # Convertir fechas para ordenar cronológicamente
+                if col_fecha_estado:
+                    df_umb_work["_fecha_dt"] = pd.to_datetime(
+                        df_umb_work[col_fecha_estado],
+                        errors="coerce",
+                        format="mixed",
+                    )
+                else:
+                    df_umb_work["_fecha_dt"] = pd.NaT
+
+                df_umb_work["_orig_index"] = df_umb_work.index
+
+                # Ordenar por sitio y fecha ascendente para que el último registro sea el más reciente
+                df_umb_work = df_umb_work.sort_values(
+                    by=[col_agrupador, "_fecha_dt", "_orig_index"],
+                    ascending=[True, True, True],
+                    na_position="first",
                 )
 
-                sitios_validos = []
-                sitios_excepcion_noc = set()
+                # Obtener la ÚLTIMA fila por sitio (el estado actual)
+                df_latest = df_umb_work.groupby(col_agrupador, as_index=False).last()
 
-                for sitio, estados in estados_por_sitio.items():
-                    # Comprobaciones flexibles (contienen subcadenas en cualquier posición)
-                    tiene_aprobado = any("aprob" in e for e in estados)
-                    tiene_rechazado = any("rechaz" in e for e in estados)
+                # Condición: El último estado debe ser un rechazo EXCLUSIVO de RF o NOC (y NO aprobado)
+                def es_rechazado_actual_rf_noc(row):
+                    st_val = str(row[col_estado]).strip().lower()
+                    es_rechazo = ("rechaz" in st_val) and ("aprob" not in st_val)
+                    es_rf_o_noc = ("rf" in st_val) or ("noc" in st_val)
+                    return es_rechazo and es_rf_o_noc
 
-                    tiene_rf_aprobado = any(("rf" in e and "aprob" in e) for e in estados)
-                    tiene_rechazo_noc = any(("noc" in e and "rechaz" in e) for e in estados)
-                    tiene_aprobado_noc = any(("noc" in e and "aprob" in e) for e in estados)
-
-                    # Regla 1 (Clásica): Tiene algún rechazo y NINGÚN tipo de aprobado
-                    condicion_normal = tiene_rechazado and not tiene_aprobado
-
-                    # Regla 2 (Excepción): Tiene RF Aprobado + Rechazo NOC, pero NO Aprobado NOC
-                    condicion_excepcion = tiene_rf_aprobado and tiene_rechazo_noc and not tiene_aprobado_noc
-
-                    if condicion_normal or condicion_excepcion:
-                        sitios_validos.append(sitio)
-                        if condicion_excepcion:
-                            sitios_excepcion_noc.add(sitio)
-
-                # 2. Filtramos el DataFrame conservando los sitios que cumplen los criterios
-                df_umbrella_filtrado = df_umbrella[df_umbrella[col_agrupador].isin(sitios_validos)].copy()
-
-                # 3. Mantenemos las filas de rechazo para mostrar fecha y comentario correctos
-                def es_fila_rechazo_deseada(row):
-                    sitio_val = row[col_agrupador]
-                    est_val = str(row[col_estado]).strip().lower()
-                    if sitio_val in sitios_excepcion_noc:
-                        # Si es un sitio de la excepción, priorizamos mostrar la fila de Rechazo NOC
-                        return ("noc" in est_val and "rechaz" in est_val) or ("rechaz" in est_val)
-                    else:
-                        return "rechaz" in est_val
-
-                mask_rechazados = df_umbrella_filtrado.apply(es_fila_rechazo_deseada, axis=1)
-                df_rechazados = df_umbrella_filtrado[mask_rechazados].copy()
+                mask_rechazados = df_latest.apply(es_rechazado_actual_rf_noc, axis=1)
+                df_rechazados = df_latest[mask_rechazados].copy()
+                df_rechazados = df_rechazados.drop(
+                    columns=["_fecha_dt", "_orig_index"], errors="ignore"
+                )
             else:
                 df_rechazados = df_umbrella.copy()
 
@@ -725,20 +716,15 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                 columns=cols_para_drop, errors="ignore"
             ).copy()
 
-            col_fecha_estado = None
-            for col in df_rechazados_clean.columns:
-                col_limpia = str(col).strip().lower().replace("_", " ")
-                if "fecha estado" in col_limpia:
-                    col_fecha_estado = col
-                    break
-
             if col_fecha_estado:
                 fechas_dt = pd.to_datetime(
                     df_rechazados_clean[col_fecha_estado],
                     errors="coerce",
                     format="mixed",
                 )
-                df_2026 = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
+                df_2026 = df_rechazados_clean[
+                    (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
+                ].copy()
                 if not df_2026.empty:
                     df_rechazados_clean = df_2026
 
@@ -878,7 +864,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             c1, c2, c3, c4 = st.columns(4)
             with c1:
                 render_tarjeta_metrica(
-                    "Total Rechazados",
+                    "Total Rechazados RF/NOC",
                     len(df_rechazados_clean),
                     "#f8fafc",
                     "#cbd5e1",
@@ -978,18 +964,18 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
                 csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
                 st.download_button(
-                    label="📥 Descargar Reporte Umbrella 2026 (CSV)",
+                    label="📥 Descargar Reporte Umbrella RF/NOC 2026 (CSV)",
                     data=csv_umbrella,
                     file_name=(
-                        "sitios_rechazados_umbrella_2026_"
+                        "sitios_rechazados_rf_noc_2026_"
                         f"{datetime.now().strftime('%Y%m%d')}.csv"
                     ),
                     mime="text/csv",
                 )
             else:
                 st.info(
-                    "No se encontraron registros rechazados del año 2026 que"
-                    " coincidan con los criterios."
+                    "No se encontraron registros rechazados en RF o NOC para el año"
+                    " 2026."
                 )
 
         except Exception as e_umb:
