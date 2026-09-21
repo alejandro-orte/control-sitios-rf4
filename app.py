@@ -88,9 +88,7 @@ st.markdown(
             transform: translateY(-1px) !important;
         }
 
-        /* ==========================================
-           BARRAS DE DESPLAZAMIENTO (SCROLLBARS)
-           ========================================== */
+        /* BARRAS DE DESPLAZAMIENTO (SCROLLBARS) */
         ::-webkit-scrollbar {
             width: 14px !important;
             height: 14px !important;
@@ -322,7 +320,6 @@ if tab_seleccionada == "📋 General BSS":
                 by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
             )
 
-            # Filtros en la barra lateral
             st.sidebar.markdown("---")
             st.sidebar.header("🔍 Filtros General BSS")
 
@@ -557,7 +554,7 @@ if tab_seleccionada == "📋 General BSS":
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
 elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
-    st.header("🚫 Registro de Sitios Rechazados RF y NOC (Umbrella 2026)")
+    st.header("🚫 Registro de Sitios Rechazados RF y NOC (Umbrella)")
 
     st.markdown(
         """
@@ -581,77 +578,75 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
         try:
             df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
-            col_estado = None
-            for col in df_umbrella.columns:
-                col_clean = str(col).strip().lower().replace("_", " ")
-                if col_clean in [
-                    "estado",
-                    "sub estado",
-                    "subestado",
-                    "status",
-                    "condicion",
-                ]:
-                    col_estado = col
-                    break
+            if df_umbrella.empty:
+                st.warning("⚠️ La pestaña de Umbrella no devolvió registros.")
+            else:
+                # Detectar columnas relevantes
+                cols_estado_candidatas = [
+                    c for c in df_umbrella.columns 
+                    if any(t in str(c).strip().lower().replace("_", " ") for t in ["estado", "status", "condicion", "etapa", "sub estado", "subestado"])
+                ]
 
-            col_sitio = None
-            for col in df_umbrella.columns:
-                col_norm = str(col).strip().lower().replace("_", " ")
-                if col_norm in [
-                    "nombre sitio",
-                    "nombre_sitio",
-                    "sitio b",
-                    "sitio_b",
-                    "sitio",
-                ]:
-                    col_sitio = col
-                    break
+                col_sitio = None
+                for col in df_umbrella.columns:
+                    col_norm = str(col).strip().lower().replace("_", " ")
+                    if col_norm in ["nombre sitio", "nombre_sitio", "sitio b", "sitio_b", "sitio", "site name"]:
+                        col_sitio = col
+                        break
 
-            col_uuid = None
-            for col in df_umbrella.columns:
-                if str(col).strip().lower() in ["flujo_uuid", "flujo uuid"]:
-                    col_uuid = col
-                    break
+                col_uuid = None
+                for col in df_umbrella.columns:
+                    if str(col).strip().lower() in ["flujo_uuid", "flujo uuid", "uuid"]:
+                        col_uuid = col
+                        break
 
-            col_fecha_estado = None
-            for col in df_umbrella.columns:
-                col_limpia = str(col).strip().lower().replace("_", " ")
-                if "fecha estado" in col_limpia:
-                    col_fecha_estado = col
-                    break
+                col_fecha_estado = None
+                for col in df_umbrella.columns:
+                    col_limpia = str(col).strip().lower().replace("_", " ")
+                    if "fecha estado" in col_limpia or "fecha_estado" in col_limpia:
+                        col_fecha_estado = col
+                        break
 
-            col_agrupador = col_sitio if col_sitio else col_uuid
+                col_agrupador = col_sitio if col_sitio else (col_uuid if col_uuid else df_umbrella.columns[0])
 
-            if col_estado and col_agrupador:
                 df_umb_work = df_umbrella.copy()
 
-                # Convertir fechas para ordenar cronológicamente
+                # Convertir fecha a datetime usando formato con día primero (dayfirst=True)
                 if col_fecha_estado:
                     df_umb_work["_fecha_dt"] = pd.to_datetime(
                         df_umb_work[col_fecha_estado],
-                        errors="coerce",
-                        format="mixed",
+                        dayfirst=True,
+                        errors="coerce"
                     )
                 else:
                     df_umb_work["_fecha_dt"] = pd.NaT
 
                 df_umb_work["_orig_index"] = df_umb_work.index
 
-                # Ordenar por sitio y fecha ascendente para que el último registro sea el más reciente
+                # Ordenar por sitio y fecha ascendente para tomar el registro más reciente
                 df_umb_work = df_umb_work.sort_values(
                     by=[col_agrupador, "_fecha_dt", "_orig_index"],
                     ascending=[True, True, True],
                     na_position="first",
                 )
 
-                # Obtener la ÚLTIMA fila por sitio (el estado actual)
-                df_latest = df_umb_work.groupby(col_agrupador, as_index=False).last()
+                # Obtener el último estado por sitio sin descartar nulos
+                df_latest = df_umb_work.groupby(col_agrupador, as_index=False, dropna=False).last()
 
-                # Condición: El último estado debe ser un rechazo EXCLUSIVO de RF o NOC (y NO aprobado)
+                # Evaluación flexible de rechazo en RF o NOC
                 def es_rechazado_actual_rf_noc(row):
-                    st_val = str(row[col_estado]).strip().lower()
-                    es_rechazo = ("rechaz" in st_val) and ("aprob" not in st_val)
-                    es_rf_o_noc = ("rf" in st_val) or ("noc" in st_val)
+                    # Concatenar textos de columnas de estado o de toda la fila
+                    if cols_estado_candidatas:
+                        text_to_check = " ".join([str(row[c]) for c in cols_estado_candidatas])
+                    else:
+                        text_to_check = " ".join(row.astype(str))
+
+                    text_lower = text_to_check.lower()
+
+                    es_rechazo = ("rechaz" in text_lower) and ("aprob" not in text_lower)
+                    # Expresión regular con delimitador de palabras para evitar falsos positivos
+                    es_rf_o_noc = bool(re.search(r'\b(rf|noc)\b', text_lower, re.IGNORECASE))
+
                     return es_rechazo and es_rf_o_noc
 
                 mask_rechazados = df_latest.apply(es_rechazado_actual_rf_noc, axis=1)
@@ -659,324 +654,295 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                 df_rechazados = df_rechazados.drop(
                     columns=["_fecha_dt", "_orig_index"], errors="ignore"
                 )
-            else:
-                df_rechazados = df_umbrella.copy()
 
-            terminos_a_eliminar = [
-                "secuencial",
-                "nombre flujo",
-                "id sitio",
-                "idsitio",
-                "imagen",
-                "foto",
-                "photo",
-                "img",
-                "evidencia",
-                "pic",
-                "adjunto",
-                "url",
-                "link",
-                "solicitante",
-                "zona comercial",
-                "regional",
-                "diseñador",
-                "site owner",
-                "owner soporte zona",
-                "sistema de energia instalar",
-                "odh",
-                "proyecto",
-                "smp",
-                "wo",
-                "tecnologia",
-                "escenario modernizacion",
-                "truno performance",
-                "turno performance",
-                "metodo recepcion",
-                "operacion planta electrica",
-            ]
-
-            cols_para_drop = []
-            for col in df_rechazados.columns:
-                col_raw = str(col).strip()
-                col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
-
-                if (
-                    col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]
-                    or col == col_estado
-                ):
-                    continue
-
-                if any(
-                    term == col_limpia or term in col_limpia
-                    for term in terminos_a_eliminar
-                ):
-                    cols_para_drop.append(col)
-
-            df_rechazados_clean = df_rechazados.drop(
-                columns=cols_para_drop, errors="ignore"
-            ).copy()
-
-            if col_fecha_estado:
-                fechas_dt = pd.to_datetime(
-                    df_rechazados_clean[col_fecha_estado],
-                    errors="coerce",
-                    format="mixed",
-                )
-                df_2026 = df_rechazados_clean[
-                    (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
-                ].copy()
-                if not df_2026.empty:
-                    df_rechazados_clean = df_2026
-
-            if col_fecha_estado:
-                fechas_estado_dt = pd.to_datetime(
-                    df_rechazados_clean[col_fecha_estado],
-                    errors="coerce",
-                    format="mixed",
-                )
-                fecha_actual_umb = pd.Timestamp.now().floor("d")
-                df_rechazados_clean["Dias_Num_Umbrella"] = (
-                    fecha_actual_umb - fechas_estado_dt
-                ).dt.days
-
-                def clasificar_condicion_umbrella(row):
-                    dias = row["Dias_Num_Umbrella"]
-                    if pd.isna(dias):
-                        return "Sin Fecha Estado"
-                    elif dias >= 16:
-                        return "Crítico"
-                    elif dias >= 8:
-                        return "Alerta"
-                    elif dias >= 0:
-                        return "En Norma"
-                    else:
-                        return "Fecha Futura / Error"
-
-                df_rechazados_clean["Condición / Estado"] = df_rechazados_clean.apply(
-                    clasificar_condicion_umbrella, axis=1
-                )
-            else:
-                df_rechazados_clean["Dias_Num_Umbrella"] = pd.NA
-                df_rechazados_clean["Condición / Estado"] = "Sin Fecha Estado"
-
-            prioridad_map_umb = {
-                "Crítico": 1,
-                "Alerta": 2,
-                "En Norma": 3,
-                "Sin Fecha Estado": 4,
-                "Fecha Futura / Error": 5,
-            }
-            df_rechazados_clean["Prioridad"] = df_rechazados_clean[
-                "Condición / Estado"
-            ].map(prioridad_map_umb)
-            df_rechazados_clean = df_rechazados_clean.sort_values(
-                by=["Prioridad", "Dias_Num_Umbrella"], ascending=[True, False]
-            )
-
-            st.sidebar.markdown("---")
-            st.sidebar.header("🔍 Filtros Umbrella")
-            conds_umb = ["Todos"] + sorted(
-                list(
-                    df_rechazados_clean["Condición / Estado"]
-                    .dropna()
-                    .astype(str)
-                    .unique()
-                )
-            )
-            cond_umb_sel = st.sidebar.selectbox(
-                "Filtrar Umbrella por Condición", conds_umb
-            )
-
-            if cond_umb_sel != "Todos":
-                df_rechazados_clean = df_rechazados_clean[
-                    df_rechazados_clean["Condición / Estado"] == cond_umb_sel
+                # Limpieza de columnas innecesarias
+                terminos_a_eliminar = [
+                    "secuencial", "nombre flujo", "id sitio", "idsitio",
+                    "imagen", "foto", "photo", "img", "evidencia", "pic",
+                    "adjunto", "url", "link", "solicitante", "zona comercial",
+                    "regional", "diseñador", "site owner", "owner soporte zona",
+                    "sistema de energia instalar", "odh", "proyecto", "smp",
+                    "wo", "tecnologia", "escenario modernizacion",
+                    "truno performance", "turno performance", "metodo recepcion",
+                    "operacion planta electrica"
                 ]
 
-            for col in df_rechazados_clean.columns:
-                if "fecha" in str(col).lower() and col not in [
-                    "Días Transcurridos",
-                    "Condición / Estado",
-                ]:
-                    fecha_parsed = pd.to_datetime(
-                        df_rechazados_clean[col], errors="coerce", format="mixed"
+                cols_para_drop = []
+                for col in df_rechazados.columns:
+                    col_raw = str(col).strip()
+                    col_limpia = re.sub(r"[\s_]+", " ", col_raw).lower()
+
+                    if col in [col_sitio, col_uuid, col_fecha_estado] or col in cols_estado_candidatas:
+                        continue
+
+                    if any(term in col_limpia for term in terminos_a_eliminar):
+                        cols_para_drop.append(col)
+
+                df_rechazados_clean = df_rechazados.drop(
+                    columns=cols_para_drop, errors="ignore"
+                ).copy()
+
+                # Filtrar por 2026 de forma segura
+                if col_fecha_estado and not df_rechazados_clean.empty:
+                    fechas_dt = pd.to_datetime(
+                        df_rechazados_clean[col_fecha_estado],
+                        dayfirst=True,
+                        errors="coerce"
                     )
-                    df_rechazados_clean[col] = (
-                        fecha_parsed.dt.strftime("%Y-%m-%d").fillna(
-                            df_rechazados_clean[col].astype(str)
-                        )
+                    df_2026 = df_rechazados_clean[
+                        (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
+                    ].copy()
+                    
+                    if not df_2026.empty:
+                        df_rechazados_clean = df_2026
+
+                # Clasificación por días transcurridos
+                if col_fecha_estado and not df_rechazados_clean.empty:
+                    fechas_estado_dt = pd.to_datetime(
+                        df_rechazados_clean[col_fecha_estado],
+                        dayfirst=True,
+                        errors="coerce"
                     )
-                    df_rechazados_clean[col] = df_rechazados_clean[col].replace(
-                        {"nan": "", "None": "", "<NaT>": ""}
-                    )
+                    fecha_actual_umb = pd.Timestamp.now().floor("d")
+                    df_rechazados_clean["Dias_Num_Umbrella"] = (
+                        fecha_actual_umb - fechas_estado_dt
+                    ).dt.days
 
-            col_input, col_btn = st.columns([4, 1])
+                    def clasificar_condicion_umbrella(row):
+                        dias = row["Dias_Num_Umbrella"]
+                        if pd.isna(dias):
+                            return "Sin Fecha Estado"
+                        elif dias >= 16:
+                            return "Crítico"
+                        elif dias >= 8:
+                            return "Alerta"
+                        elif dias >= 0:
+                            return "En Norma"
+                        else:
+                            return "Fecha Futura / Error"
 
-            with col_input:
-                search_query = st.text_input(
-                    "🔍 **Buscar por Nombre de Sitio o Flujo_UUID:**",
-                    placeholder="Ejemplo: NAR.Santa Cecilia o 46977E-9118CE...",
-                    key="search_sitio_umbrella",
-                )
-
-            with col_btn:
-                st.write("##")
-                btn_buscar = st.button(
-                    "🔍 Buscar", key="btn_buscar_umbrella", use_container_width=True
-                )
-
-            if search_query.strip() and (
-                btn_buscar or st.session_state.get("search_sitio_umbrella")
-            ):
-                query = search_query.strip()
-                condiciones = []
-                if col_sitio:
-                    condiciones.append(
-                        df_rechazados_clean[col_sitio]
-                        .astype(str)
-                        .str.contains(query, case=False, na=False)
-                    )
-                if col_uuid:
-                    condiciones.append(
-                        df_rechazados_clean[col_uuid]
-                        .astype(str)
-                        .str.contains(query, case=False, na=False)
-                    )
-
-                if condiciones:
-                    mask_search = condiciones[0]
-                    for cond in condiciones[1:]:
-                        mask_search |= cond
-                    df_rechazados_clean = df_rechazados_clean[mask_search]
-                else:
-                    mask_search = (
-                        df_rechazados_clean.astype(str)
-                        .apply(
-                            lambda row: row.str.contains(query, case=False, na=False)
-                        )
-                        .any(axis=1)
-                    )
-                    df_rechazados_clean = df_rechazados_clean[mask_search]
-
-            df_rechazados_clean["Días Transcurridos"] = df_rechazados_clean[
-                "Dias_Num_Umbrella"
-            ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
-
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                render_tarjeta_metrica(
-                    "Total Rechazados RF/NOC",
-                    len(df_rechazados_clean),
-                    "#f8fafc",
-                    "#cbd5e1",
-                    "#0f172a",
-                )
-            with c2:
-                render_tarjeta_metrica(
-                    "Críticos",
-                    (df_rechazados_clean["Condición / Estado"] == "Crítico").sum(),
-                    "#fdf2f2",
-                    "#f8b4b4",
-                    "#9b2c2c",
-                )
-            with c3:
-                render_tarjeta_metrica(
-                    "Alerta",
-                    (df_rechazados_clean["Condición / Estado"] == "Alerta").sum(),
-                    "#fffaf0",
-                    "#fbd38d",
-                    "#9c4221",
-                )
-            with c4:
-                render_tarjeta_metrica(
-                    "En Norma",
-                    (df_rechazados_clean["Condición / Estado"] == "En Norma").sum(),
-                    "#f0fff4",
-                    "#9ae6b4",
-                    "#22543d",
-                )
-
-            st.markdown("---")
-
-            cols = list(df_rechazados_clean.columns)
-            prioridad = [
-                col_sitio,
-                "Condición / Estado",
-                "Días Transcurridos",
-                col_estado,
-                col_fecha_estado,
-                col_uuid,
-            ]
-            prioridad_existente = [c for c in prioridad if c and c in cols]
-
-            for c in prioridad_existente:
-                cols.remove(c)
-
-            for col_aux in ["Dias_Num_Umbrella", "Prioridad"]:
-                if col_aux in cols:
-                    cols.remove(col_aux)
-
-            df_rechazados_final = df_rechazados_clean[prioridad_existente + cols]
-
-            def colorear_condicion_umb(val):
-                if val == "Crítico":
-                    return (
-                        "background-color: #f8d7da; color: #842029; font-weight: bold;"
-                    )
-                elif val == "Alerta":
-                    return (
-                        "background-color: #fff3cd; color: #664d03; font-weight: bold;"
-                    )
-                elif val == "En Norma":
-                    return (
-                        "background-color: #d1e7dd; color: #0f5132; font-weight: bold;"
-                    )
-                elif val == "Sin Fecha Estado":
-                    return (
-                        "background-color: #e2e3e5; color: #41464b; font-weight: bold;"
+                    df_rechazados_clean["Condición / Estado"] = df_rechazados_clean.apply(
+                        clasificar_condicion_umbrella, axis=1
                     )
                 else:
-                    return ""
+                    df_rechazados_clean["Dias_Num_Umbrella"] = pd.NA
+                    df_rechazados_clean["Condición / Estado"] = "Sin Fecha Estado"
 
-            styled_df_umb = df_rechazados_final.style.map(
-                colorear_condicion_umb, subset=["Condición / Estado"]
-            )
-
-            if not df_rechazados_final.empty:
-                col_config_umb = {
-                    "Condición / Estado": st.column_config.TextColumn(
-                        "Condición / Estado", width="medium"
-                    ),
-                    "Días Transcurridos": st.column_config.TextColumn(
-                        "Días Transcurridos", width="small"
-                    ),
+                prioridad_map_umb = {
+                    "Crítico": 1,
+                    "Alerta": 2,
+                    "En Norma": 3,
+                    "Sin Fecha Estado": 4,
+                    "Fecha Futura / Error": 5,
                 }
-                if col_sitio:
-                    col_config_umb[col_sitio] = st.column_config.TextColumn(
-                        col_sitio, width="medium", pinned=True
+                df_rechazados_clean["Prioridad"] = df_rechazados_clean[
+                    "Condición / Estado"
+                ].map(prioridad_map_umb)
+                df_rechazados_clean = df_rechazados_clean.sort_values(
+                    by=["Prioridad", "Dias_Num_Umbrella"], ascending=[True, False]
+                )
+
+                st.sidebar.markdown("---")
+                st.sidebar.header("🔍 Filtros Umbrella")
+                conds_umb = ["Todos"] + sorted(
+                    list(
+                        df_rechazados_clean["Condición / Estado"]
+                        .dropna()
+                        .astype(str)
+                        .unique()
+                    )
+                )
+                cond_umb_sel = st.sidebar.selectbox(
+                    "Filtrar Umbrella por Condición", conds_umb
+                )
+
+                if cond_umb_sel != "Todos":
+                    df_rechazados_clean = df_rechazados_clean[
+                        df_rechazados_clean["Condición / Estado"] == cond_umb_sel
+                    ]
+
+                for col in df_rechazados_clean.columns:
+                    if "fecha" in str(col).lower() and col not in [
+                        "Días Transcurridos",
+                        "Condición / Estado",
+                    ]:
+                        fecha_parsed = pd.to_datetime(
+                            df_rechazados_clean[col], dayfirst=True, errors="coerce"
+                        )
+                        df_rechazados_clean[col] = (
+                            fecha_parsed.dt.strftime("%Y-%m-%d").fillna(
+                                df_rechazados_clean[col].astype(str)
+                            )
+                        )
+                        df_rechazados_clean[col] = df_rechazados_clean[col].replace(
+                            {"nan": "", "None": "", "<NaT>": ""}
+                        )
+
+                col_input, col_btn = st.columns([4, 1])
+
+                with col_input:
+                    search_query = st.text_input(
+                        "🔍 **Buscar por Nombre de Sitio o Flujo_UUID:**",
+                        placeholder="Ejemplo: NAR.Santa Cecilia o 46977E-9118CE...",
+                        key="search_sitio_umbrella",
                     )
 
-                st.dataframe(
-                    styled_df_umb,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config=col_config_umb,
+                with col_btn:
+                    st.write("##")
+                    btn_buscar = st.button(
+                        "🔍 Buscar", key="btn_buscar_umbrella", use_container_width=True
+                    )
+
+                if search_query.strip() and (
+                    btn_buscar or st.session_state.get("search_sitio_umbrella")
+                ):
+                    query = search_query.strip()
+                    condiciones = []
+                    if col_sitio:
+                        condiciones.append(
+                            df_rechazados_clean[col_sitio]
+                            .astype(str)
+                            .str.contains(query, case=False, na=False)
+                        )
+                    if col_uuid:
+                        condiciones.append(
+                            df_rechazados_clean[col_uuid]
+                            .astype(str)
+                            .str.contains(query, case=False, na=False)
+                        )
+
+                    if condiciones:
+                        mask_search = condiciones[0]
+                        for cond in condiciones[1:]:
+                            mask_search |= cond
+                        df_rechazados_clean = df_rechazados_clean[mask_search]
+                    else:
+                        mask_search = (
+                            df_rechazados_clean.astype(str)
+                            .apply(
+                                lambda row: row.str.contains(query, case=False, na=False)
+                            )
+                            .any(axis=1)
+                        )
+                        df_rechazados_clean = df_rechazados_clean[mask_search]
+
+                df_rechazados_clean["Días Transcurridos"] = df_rechazados_clean[
+                    "Dias_Num_Umbrella"
+                ].apply(lambda x: f"{int(x)} días" if pd.notna(x) else "Sin Fecha Estado")
+
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    render_tarjeta_metrica(
+                        "Total Rechazados RF/NOC",
+                        len(df_rechazados_clean),
+                        "#f8fafc",
+                        "#cbd5e1",
+                        "#0f172a",
+                    )
+                with c2:
+                    render_tarjeta_metrica(
+                        "Críticos",
+                        (df_rechazados_clean["Condición / Estado"] == "Crítico").sum(),
+                        "#fdf2f2",
+                        "#f8b4b4",
+                        "#9b2c2c",
+                    )
+                with c3:
+                    render_tarjeta_metrica(
+                        "Alerta",
+                        (df_rechazados_clean["Condición / Estado"] == "Alerta").sum(),
+                        "#fffaf0",
+                        "#fbd38d",
+                        "#9c4221",
+                    )
+                with c4:
+                    render_tarjeta_metrica(
+                        "En Norma",
+                        (df_rechazados_clean["Condición / Estado"] == "En Norma").sum(),
+                        "#f0fff4",
+                        "#9ae6b4",
+                        "#22543d",
+                    )
+
+                st.markdown("---")
+
+                cols = list(df_rechazados_clean.columns)
+                prioridad = [
+                    col_sitio,
+                    "Condición / Estado",
+                    "Días Transcurridos",
+                    col_fecha_estado,
+                    col_uuid,
+                ] + cols_estado_candidatas
+                prioridad_existente = [c for c in prioridad if c and c in cols]
+
+                for c in prioridad_existente:
+                    if c in cols:
+                        cols.remove(c)
+
+                for col_aux in ["Dias_Num_Umbrella", "Prioridad"]:
+                    if col_aux in cols:
+                        cols.remove(col_aux)
+
+                df_rechazados_final = df_rechazados_clean[prioridad_existente + cols]
+
+                def colorear_condicion_umb(val):
+                    if val == "Crítico":
+                        return (
+                            "background-color: #f8d7da; color: #842029; font-weight: bold;"
+                        )
+                    elif val == "Alerta":
+                        return (
+                            "background-color: #fff3cd; color: #664d03; font-weight: bold;"
+                        )
+                    elif val == "En Norma":
+                        return (
+                            "background-color: #d1e7dd; color: #0f5132; font-weight: bold;"
+                        )
+                    elif val == "Sin Fecha Estado":
+                        return (
+                            "background-color: #e2e3e5; color: #41464b; font-weight: bold;"
+                        )
+                    else:
+                        return ""
+
+                styled_df_umb = df_rechazados_final.style.map(
+                    colorear_condicion_umb, subset=["Condición / Estado"]
                 )
 
-                csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label="📥 Descargar Reporte Umbrella RF/NOC 2026 (CSV)",
-                    data=csv_umbrella,
-                    file_name=(
-                        "sitios_rechazados_rf_noc_2026_"
-                        f"{datetime.now().strftime('%Y%m%d')}.csv"
-                    ),
-                    mime="text/csv",
-                )
-            else:
-                st.info(
-                    "No se encontraron registros rechazados en RF o NOC para el año"
-                    " 2026."
-                )
+                if not df_rechazados_final.empty:
+                    col_config_umb = {
+                        "Condición / Estado": st.column_config.TextColumn(
+                            "Condición / Estado", width="medium"
+                        ),
+                        "Días Transcurridos": st.column_config.TextColumn(
+                            "Días Transcurridos", width="small"
+                        ),
+                    }
+                    if col_sitio:
+                        col_config_umb[col_sitio] = st.column_config.TextColumn(
+                            col_sitio, width="medium", pinned=True
+                        )
+
+                    st.dataframe(
+                        styled_df_umb,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config=col_config_umb,
+                    )
+
+                    csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        label="📥 Descargar Reporte Umbrella RF/NOC (CSV)",
+                        data=csv_umbrella,
+                        file_name=(
+                            "sitios_rechazados_rf_noc_"
+                            f"{datetime.now().strftime('%Y%m%d')}.csv"
+                        ),
+                        mime="text/csv",
+                    )
+                else:
+                    st.info("No se encontraron registros rechazados en RF o NOC con los criterios seleccionados.")
 
         except Exception as e_umb:
             st.error(f"Error al cargar la pestaña umbrella: {e_umb}")
