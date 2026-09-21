@@ -88,9 +88,7 @@ st.markdown(
             transform: translateY(-1px) !important;
         }
 
-        /* ==========================================
-           BARRAS DE DESPLAZAMIENTO (SCROLLBARS) NOTORIAS
-           ========================================== */
+        /* Barras de desplazamiento notorias */
         ::-webkit-scrollbar {
             width: 14px !important;
             height: 14px !important;
@@ -118,7 +116,7 @@ st.markdown(
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        /* Tarjeta contenedora estilizada para filtros */
+        /* Tarjeta contenedora para filtros */
         .filter-card {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -128,7 +126,7 @@ st.markdown(
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
 
-        /* Badges / Leyendas de estado */
+        /* Badges de estado */
         .badge {
             padding: 6px 12px;
             border-radius: 6px;
@@ -325,7 +323,6 @@ if tab_seleccionada == "📋 General BSS":
           by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False]
       )
 
-      # Filtros en la barra lateral
       st.sidebar.markdown("---")
       st.sidebar.header("🔍 Filtros General BSS")
 
@@ -377,9 +374,6 @@ if tab_seleccionada == "📋 General BSS":
             .str.contains(busqueda, case=False, na=False)
         ]
 
-      # ==========================================
-      # TÍTULO Y TARJETA ESTÉTICA DE FILTRO POR REGIONAL
-      # ==========================================
       st.subheader("Lista de Sitios Pendientes")
 
       st.markdown('<div class="filter-card">', unsafe_allow_html=True)
@@ -563,7 +557,7 @@ if tab_seleccionada == "📋 General BSS":
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
 elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
-  st.header("🚫 Registro de Sitios Rechazados Umbrella (Año 2026)")
+  st.header("🚫 Registro de Sitios Rechazados Umbrella")
 
   st.markdown(
       """
@@ -587,18 +581,35 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
 
+      st.sidebar.markdown("---")
+      st.sidebar.header("🔍 Filtros Umbrella")
+
+      # Casilla opcional para ocultar aprobados (falso por defecto para que NO borre los rechazos NOC)
+      excluir_aprobados = st.sidebar.checkbox(
+          "Excluir flujos/sitios con estado 'Aprobado'", value=False
+      )
+
+      cols_estado_posibles = []
       col_estado = None
       for col in df_umbrella.columns:
         col_clean = str(col).strip().lower().replace("_", " ")
-        if col_clean in [
-            "estado",
-            "sub estado",
-            "subestado",
-            "status",
-            "condicion",
-        ]:
-          col_estado = col
-          break
+        if any(
+            k in col_clean
+            for k in ["estado", "status", "condicion", "sub estado"]
+        ):
+          cols_estado_posibles.append(col)
+          if col_clean in [
+              "estado",
+              "sub estado",
+              "subestado",
+              "status",
+              "condicion",
+          ]:
+            if not col_estado:
+              col_estado = col
+
+      if not col_estado and cols_estado_posibles:
+        col_estado = cols_estado_posibles[0]
 
       col_sitio = None
       for col in df_umbrella.columns:
@@ -615,39 +626,38 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
       col_uuid = None
       for col in df_umbrella.columns:
-        if str(col).strip().lower() in ["flujo_uuid", "flujo uuid"]:
+        if str(col).strip().lower() in ["flujo_uuid", "flujo uuid", "uuid"]:
           col_uuid = col
           break
 
-      # Usar Flujo_UUID de forma prioritaria para evitar descartar sitios enteros con otros flujos aprobados
       col_agrupador = col_uuid if col_uuid else col_sitio
 
-      if col_estado and col_agrupador:
+      df_base = df_umbrella.copy()
+
+      if excluir_aprobados and col_estado and col_agrupador:
         mask_aprobados = (
-            df_umbrella[col_estado]
+            df_base[col_estado]
             .astype(str)
             .str.strip()
             .str.contains("Aprobado", case=False, na=False)
         )
-        flujos_aprobados = (
-            df_umbrella[mask_aprobados][col_agrupador].dropna().unique()
-        )
+        flujos_aprobados = df_base[mask_aprobados][col_agrupador].dropna().unique()
+        df_base = df_base[~df_base[col_agrupador].isin(flujos_aprobados)]
 
-        # Excluir sólo los flujos específicos aprobados
-        df_umbrella_sin_aprobados = df_umbrella[
-            ~df_umbrella[col_agrupador].isin(flujos_aprobados)
-        ].copy()
+      # BÚSQUEDA MULTICOLUMNA DE RECHAZOS (Captura NOC, RF, Rechazo, Rechazado, etc.)
+      patron_rechazo = r"Rechaz|Rechazo|NOC|RF|Devuelto"
 
-        # NUEVA BÚSQUEDA AMPLIA: Captura cualquier Rechazado, Rechazo, NOC, RF, etc.
-        mask_rechazados = (
-            df_umbrella_sin_aprobados[col_estado]
-            .astype(str)
-            .str.strip()
-            .str.contains(r"Rechaz|NOC|RF", case=False, na=False, regex=True)
-        )
-        df_rechazados = df_umbrella_sin_aprobados[mask_rechazados].copy()
+      if cols_estado_posibles:
+        mask_rechazados = pd.Series(False, index=df_base.index)
+        for c in cols_estado_posibles:
+          mask_rechazados |= (
+              df_base[c]
+              .astype(str)
+              .str.contains(patron_rechazo, case=False, na=False)
+          )
+        df_rechazados = df_base[mask_rechazados].copy()
       else:
-        df_rechazados = df_umbrella.copy()
+        df_rechazados = df_base.copy()
 
       terminos_a_eliminar = [
           "secuencial",
@@ -689,7 +699,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
         if (
             col_limpia in ["flujo uuid", "flujo_uuid", "uuid"]
-            or col == col_estado
+            or col in cols_estado_posibles
         ):
           continue
 
@@ -706,7 +716,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       col_fecha_estado = None
       for col in df_rechazados_clean.columns:
         col_limpia = str(col).strip().lower().replace("_", " ")
-        if "fecha estado" in col_limpia:
+        if "fecha estado" in col_limpia or "fecha_estado" in col_limpia:
           col_fecha_estado = col
           break
 
@@ -716,7 +726,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             errors="coerce",
             format="mixed",
         )
-        # Mantener registros de 2026 Y TAMBIÉN los que no tengan fecha para no descartarlos
+        # Mantener registros de 2026 y aquellos que no tengan fecha para evitar perder información
         df_2026 = df_rechazados_clean[
             (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
         ].copy()
@@ -768,8 +778,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           by=["Prioridad", "Dias_Num_Umbrella"], ascending=[True, False]
       )
 
-      st.sidebar.markdown("---")
-      st.sidebar.header("🔍 Filtros Umbrella")
       conds_umb = ["Todos"] + sorted(
           list(
               df_rechazados_clean["Condición / Estado"]
@@ -809,7 +817,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       with col_input:
         search_query = st.text_input(
             "🔍 **Buscar por Nombre de Sitio o Flujo_UUID:**",
-            placeholder="Ejemplo: NAR.Santa Cecilia o 46977E-9118CE...",
+            placeholder="Ejemplo: BOG.RB TIBABITA o NOC...",
             key="search_sitio_umbrella",
         )
 
@@ -959,18 +967,18 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
         csv_umbrella = df_rechazados_final.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📥 Descargar Reporte Umbrella 2026 (CSV)",
+            label="📥 Descargar Reporte Umbrella (CSV)",
             data=csv_umbrella,
             file_name=(
-                "sitios_rechazados_umbrella_2026_"
+                "sitios_rechazados_umbrella_"
                 f"{datetime.now().strftime('%Y%m%d')}.csv"
             ),
             mime="text/csv",
         )
       else:
         st.info(
-            "No se encontraron registros rechazados del año 2026 que"
-            " coincidan con los criterios."
+            "No se encontraron registros rechazados que coincidan con los"
+            " criterios."
         )
 
     except Exception as e_umb:
