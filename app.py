@@ -619,6 +619,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           col_uuid = col
           break
 
+      # Usar Flujo_UUID de forma prioritaria para evitar descartar sitios enteros con otros flujos aprobados
       col_agrupador = col_uuid if col_uuid else col_sitio
 
       if col_estado and col_agrupador:
@@ -628,20 +629,21 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             .str.strip()
             .str.contains("Aprobado", case=False, na=False)
         )
-        sitios_aprobados = (
+        flujos_aprobados = (
             df_umbrella[mask_aprobados][col_agrupador].dropna().unique()
         )
 
+        # Excluir sólo los flujos específicos aprobados
         df_umbrella_sin_aprobados = df_umbrella[
-            ~df_umbrella[col_agrupador].isin(sitios_aprobados)
+            ~df_umbrella[col_agrupador].isin(flujos_aprobados)
         ].copy()
 
-        # NUEVO AJUSTE: Buscamos variaciones como "Rechazado" o "Rechazo" (para capturar "Rechazo 1 NOC")
+        # NUEVA BÚSQUEDA AMPLIA: Captura cualquier Rechazado, Rechazo, NOC, RF, etc.
         mask_rechazados = (
             df_umbrella_sin_aprobados[col_estado]
             .astype(str)
             .str.strip()
-            .str.contains(r"Rechazado|Rechazo", case=False, na=False, regex=True)
+            .str.contains(r"Rechaz|NOC|RF", case=False, na=False, regex=True)
         )
         df_rechazados = df_umbrella_sin_aprobados[mask_rechazados].copy()
       else:
@@ -714,7 +716,10 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             errors="coerce",
             format="mixed",
         )
-        df_2026 = df_rechazados_clean[fechas_dt.dt.year == 2026].copy()
+        # Mantener registros de 2026 Y TAMBIÉN los que no tengan fecha para no descartarlos
+        df_2026 = df_rechazados_clean[
+            (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
+        ].copy()
         if not df_2026.empty:
           df_rechazados_clean = df_2026
 
