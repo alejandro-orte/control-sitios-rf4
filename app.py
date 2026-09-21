@@ -557,7 +557,7 @@ if tab_seleccionada == "📋 General BSS":
 # PESTAÑA 2: SITIOS RECHAZADOS (PESTAÑA UMBRELLA)
 # ==========================================
 elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
-  st.header("🚫 Registro de Sitios Rechazados Umbrella")
+  st.header("🚫 Registro de Sitios Rechazados / Control Umbrella")
 
   st.markdown(
       """
@@ -580,14 +580,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
   else:
     try:
       df_umbrella = cargar_datos(SHEET_URL_UMBRELLA)
-
-      st.sidebar.markdown("---")
-      st.sidebar.header("🔍 Filtros Umbrella")
-
-      # Casilla opcional para ocultar aprobados (falso por defecto para que NO borre los rechazos NOC)
-      excluir_aprobados = st.sidebar.checkbox(
-          "Excluir flujos/sitios con estado 'Aprobado'", value=False
-      )
 
       cols_estado_posibles = []
       col_estado = None
@@ -630,34 +622,124 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
           col_uuid = col
           break
 
-      col_agrupador = col_uuid if col_uuid else col_sitio
-
       df_base = df_umbrella.copy()
 
-      if excluir_aprobados and col_estado and col_agrupador:
-        mask_aprobados = (
-            df_base[col_estado]
-            .astype(str)
-            .str.strip()
-            .str.contains("Aprobado", case=False, na=False)
-        )
-        flujos_aprobados = df_base[mask_aprobados][col_agrupador].dropna().unique()
-        df_base = df_base[~df_base[col_agrupador].isin(flujos_aprobados)]
+      # ------------------------------------------------------------------
+      # IDENTIFICACIÓN DE SITIOS / FLUJOS CON RECHAZO EN NOC
+      # ------------------------------------------------------------------
+      patron_noc_rechazo = r"RECHAZ.*NOC|NOC.*RECHAZ|DEVUELT.*NOC"
+      mask_noc_rechazo = pd.Series(False, index=df_base.index)
 
-      # BÚSQUEDA MULTICOLUMNA DE RECHAZOS (Captura NOC, RF, Rechazo, Rechazado, etc.)
-      patron_rechazo = r"Rechaz|Rechazo|NOC|RF|Devuelto"
-
-      if cols_estado_posibles:
-        mask_rechazados = pd.Series(False, index=df_base.index)
-        for c in cols_estado_posibles:
-          mask_rechazados |= (
+      for c in cols_estado_posibles if cols_estado_posibles else [col_estado]:
+        if c in df_base.columns:
+          mask_noc_rechazo |= (
               df_base[c]
               .astype(str)
-              .str.contains(patron_rechazo, case=False, na=False)
+              .str.contains(
+                  patron_noc_rechazo, case=False, na=False, regex=True
+              )
           )
-        df_rechazados = df_base[mask_rechazados].copy()
-      else:
-        df_rechazados = df_base.copy()
+
+      sitios_con_noc_rechazo = set()
+      if col_sitio and col_sitio in df_base.columns:
+        sitios_con_noc_rechazo.update(
+            df_base[mask_noc_rechazo][col_sitio].dropna().unique()
+        )
+      if col_uuid and col_uuid in df_base.columns:
+        sitios_con_noc_rechazo.update(
+            df_base[mask_noc_rechazo][col_uuid].dropna().unique()
+        )
+
+      # ------------------------------------------------------------------
+      # CÁLCULO DE MÁSCARAS DE INCLUSIÓN
+      # ------------------------------------------------------------------
+      # 1. Filas con Rechazo Directo (RF, NOC, Devuelto, etc.)
+      patron_rechazo_directo = r"Rechaz|Devuelto|NOC"
+      mask_rechazo_directo = pd.Series(False, index=df_base.index)
+      for c in cols_estado_posibles if cols_estado_posibles else [col_estado]:
+        if c in df_base.columns:
+          mask_rechazo_directo |= (
+              df_base[c]
+              .astype(str)
+              .str.contains(
+                  patron_rechazo_directo, case=False, na=False, regex=True
+              )
+          )
+
+      # 2. Filas 'Aprobado RF' pertenecientes a un sitio/flujo con Rechazo NOC
+      patron_aprobado_rf = r"Aprobad.*RF|RF.*Aprobad"
+      mask_aprobado_rf = pd.Series(False, index=df_base.index)
+      for c in cols_estado_posibles if cols_estado_posibles else [col_estado]:
+        if c in df_base.columns:
+          mask_aprobado_rf |= (
+              df_base[c]
+              .astype(str)
+              .str.contains(
+                  patron_aprobado_rf, case=False, na=False, regex=True
+              )
+          )
+
+      mask_aprobado_rf_con_noc = pd.Series(False, index=df_base.index)
+      if col_sitio and col_sitio in df_base.columns:
+        mask_aprobado_rf_con_noc |= df_base[col_sitio].isin(
+            sitios_con_noc_rechazo
+        )
+      if col_uuid and col_uuid in df_base.columns:
+        mask_aprobado_rf_con_noc |= df_base[col_uuid].isin(
+            sitios_con_noc_rechazo
+        )
+
+      mask_aprobado_rf_con_noc &= mask_aprobado_rf
+
+      # Máscara combinada por defecto
+      df_rechazados = df_base[
+          mask_rechazo_directo | mask_aprobado_rf_con_noc
+      ].copy()
+
+      # FILTROS EN BARRA LATERAL
+      st.sidebar.markdown("---")
+      st.sidebar.header("🔍 Filtros Umbrella")
+
+      tipo_filtro = st.sidebar.radio(
+          "Filtrar por Tipo de Registro:",
+          [
+              "Mostrar Todos (Rechazos RF, NOC y Aprobados RF c/NOC)",
+              "Solo Rechazados RF",
+              "Solo Rechazados NOC",
+              "Solo Aprobados RF con Rechazo NOC",
+          ],
+          index=0,
+      )
+
+      if (
+          tipo_filtro
+          == "Solo Rechazados RF"
+      ):
+        mask_rf = pd.Series(False, index=df_base.index)
+        for c in (
+            cols_estado_posibles if cols_estado_posibles else [col_estado]
+        ):
+          if c in df_base.columns:
+            mask_rf |= (
+                df_base[c]
+                .astype(str)
+                .str.contains(
+                    r"Rechaz.*RF|RF.*Rechaz", case=False, na=False, regex=True
+                )
+            )
+        df_rechazados = df_base[mask_rf].copy()
+
+      elif (
+          tipo_filtro
+          == "Solo Rechazados NOC"
+      ):
+        df_rechazados = df_base[mask_noc_rechazo].copy()
+
+      elif (
+          tipo_filtro
+          == "Solo Aprobados RF con Rechazo NOC"
+      ):
+        df_rechazados = df_base[mask_aprobado_rf_con_noc].copy()
 
       terminos_a_eliminar = [
           "secuencial",
@@ -726,7 +808,6 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
             errors="coerce",
             format="mixed",
         )
-        # Mantener registros de 2026 y aquellos que no tengan fecha para evitar perder información
         df_2026 = df_rechazados_clean[
             (fechas_dt.dt.year == 2026) | (fechas_dt.isna())
         ].copy()
@@ -867,7 +948,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
       c1, c2, c3, c4 = st.columns(4)
       with c1:
         render_tarjeta_metrica(
-            "Total Rechazados",
+            "Total Registros",
             len(df_rechazados_clean),
             "#f8fafc",
             "#cbd5e1",
@@ -977,8 +1058,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
         )
       else:
         st.info(
-            "No se encontraron registros rechazados que coincidan con los"
-            " criterios."
+            "No se encontraron registros que coincidan con los criterios."
         )
 
     except Exception as e_umb:
