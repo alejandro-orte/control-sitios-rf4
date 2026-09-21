@@ -627,10 +627,13 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
                 df_latest = df_umb_work.groupby(col_agrupador, as_index=False, dropna=False).last()
 
-                # 2. Búsqueda limpia en TODA la fila
+                # 2. Búsqueda limpia y robusta en TODA la fila (Garantizando conversión a string)
                 def es_rechazado_actual_rf_noc(row):
-                    text_raw = " ".join(row.astype(str)).lower()
-                    # Reemplaza cualquier caracter no alfanumérico por espacio (permite RECHAZADO_RF o RECHAZADO-NOC)
+                    # Conversión explícita a string elemento por elemento para evitar TypeError
+                    str_vals = [str(val) for val in row.values if pd.notna(val)]
+                    text_raw = " ".join(str_vals).lower()
+                    
+                    # Reemplaza cualquier caracter no alfanumérico por espacio
                     text_clean = re.sub(r'[^a-z0-9]+', ' ', text_raw)
 
                     tiene_rechazo = "rechaz" in text_clean
