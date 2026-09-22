@@ -327,9 +327,9 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                 col_agrupador = col_sitio if col_sitio else (col_uuid if col_uuid else df_umbrella.columns[0])
                 df_umb_work = df_umbrella.copy()
 
-                # Parseo robusto de fechas
+                # Parseo robusto de fechas sin forzar el primer número como día
                 if col_fecha_estado:
-                    df_umb_work["_fecha_dt"] = pd.to_datetime(df_umb_work[col_fecha_estado], dayfirst=True, errors="coerce")
+                    df_umb_work["_fecha_dt"] = pd.to_datetime(df_umb_work[col_fecha_estado], errors="coerce")
                 else:
                     df_umb_work["_fecha_dt"] = pd.NaT
 
@@ -387,7 +387,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
                 # 4. Clasificación por Días Transcurridos
                 if col_fecha_estado and not df_rechazados_clean.empty:
-                    fechas_estado_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], dayfirst=True, errors="coerce")
+                    fechas_estado_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], errors="coerce")
                     fecha_actual_umb = pd.Timestamp.now().floor("d")
                     df_rechazados_clean["Dias_Num_Umbrella"] = (fecha_actual_umb - fechas_estado_dt).dt.days
 
