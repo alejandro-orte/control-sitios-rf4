@@ -200,35 +200,58 @@ if tab_seleccionada == "📋 General BSS":
             df_proc = df_proc.sort_values(by=["Prioridad", "Dias_Desde_Integracion"], ascending=[True, False])
 
             st.sidebar.markdown("---")
-            st.sidebar.header("🔍 Filtros General BSS")
+            st.sidebar.header("🔍 Filtros Múltiples General BSS")
             df_filtrado = df_proc.copy()
 
-            condiciones = ["Todos"] + sorted(list(df_filtrado["Condición / Estado"].dropna().astype(str).unique()))
-            condicion_sel = st.sidebar.selectbox("Filtrar por Condición / Alerta", condiciones)
-            if condicion_sel != "Todos": df_filtrado = df_filtrado[df_filtrado["Condición / Estado"] == condicion_sel]
+            # 1. Filtro Condición / Alerta (Selección Múltiple)
+            condiciones = sorted(list(df_filtrado["Condición / Estado"].dropna().astype(str).unique()))
+            condicion_sel = st.sidebar.multiselect("Filtrar por Condición / Alerta", options=condiciones)
+            if condicion_sel: 
+                df_filtrado = df_filtrado[df_filtrado["Condición / Estado"].isin(condicion_sel)]
 
-            proyectos = ["Todos"] + sorted(list(df_filtrado["Proyecto"].dropna().astype(str).unique()))
-            proyecto_sel = st.sidebar.selectbox("Filtrar por Proyecto", proyectos)
-            if proyecto_sel != "Todos": df_filtrado = df_filtrado[df_filtrado["Proyecto"] == proyecto_sel]
+            # 2. Filtro Proyecto (Selección Múltiple)
+            proyectos = sorted(list(df_filtrado["Proyecto"].dropna().astype(str).unique()))
+            proyecto_sel = st.sidebar.multiselect("Filtrar por Proyecto", options=proyectos)
+            if proyecto_sel: 
+                df_filtrado = df_filtrado[df_filtrado["Proyecto"].isin(proyecto_sel)]
 
-            contratistas = ["Todos"] + sorted(list(df_filtrado["SS IMP"].dropna().astype(str).unique()))
-            contratista_sel = st.sidebar.selectbox("Filtrar por Contratista (SS IMP)", contratistas)
-            if contratista_sel != "Todos": df_filtrado = df_filtrado[df_filtrado["SS IMP"] == contratista_sel]
+            # 3. Filtro Contratista (Selección Múltiple)
+            contratistas = sorted(list(df_filtrado["SS IMP"].dropna().astype(str).unique()))
+            contratista_sel = st.sidebar.multiselect("Filtrar por Contratista (SS IMP)", options=contratistas)
+            if contratista_sel: 
+                df_filtrado = df_filtrado[df_filtrado["SS IMP"].isin(contratista_sel)]
 
-            estados_macro = ["Todos"] + sorted(list(df_filtrado["Estado Macro"].dropna().astype(str).unique()))
-            estado_macro_sel = st.sidebar.selectbox("Filtrar por Estado Macro", estados_macro)
-            if estado_macro_sel != "Todos": df_filtrado = df_filtrado[df_filtrado["Estado Macro"] == estado_macro_sel]
+            # 4. Filtro Estado Macro (Selección Múltiple)
+            estados_macro = sorted(list(df_filtrado["Estado Macro"].dropna().astype(str).unique()))
+            estado_macro_sel = st.sidebar.multiselect("Filtrar por Estado Macro", options=estados_macro)
+            if estado_macro_sel: 
+                df_filtrado = df_filtrado[df_filtrado["Estado Macro"].isin(estado_macro_sel)]
 
+            # 5. NUEVO: Filtro Sub Estado Insrv (Selección Múltiple)
+            if "Sub Estado Insrv" in df_filtrado.columns:
+                sub_estados = sorted(list(df_filtrado["Sub Estado Insrv"].dropna().astype(str).unique()))
+                sub_estado_sel = st.sidebar.multiselect("Filtrar por Sub Estado Insrv", options=sub_estados)
+                if sub_estado_sel: 
+                    df_filtrado = df_filtrado[df_filtrado["Sub Estado Insrv"].isin(sub_estado_sel)]
+
+            # 6. Búsqueda flexible por Sitio (Site Name)
             busqueda = st.sidebar.text_input("Buscar por Sitio (Site Name)")
-            if busqueda: df_filtrado = df_filtrado[df_filtrado["Site Name"].astype(str).str.contains(busqueda, case=False, na=False)]
+            if busqueda: 
+                # Permite buscar fragmentos separados. Ej: "bogota 01" encuentra "Site Bogota Norte 01"
+                for palabra in busqueda.split():
+                    df_filtrado = df_filtrado[df_filtrado["Site Name"].astype(str).str.contains(palabra, case=False, na=False)]
 
             st.subheader("Lista de Sitios Pendientes")
             st.markdown('<div class="filter-card">', unsafe_allow_html=True)
-            territorios = ["Todos"] + sorted(list(df_filtrado["Territorio Comercial"].dropna().astype(str).unique()))
-            territorio_sel = st.selectbox("🌐 **Filtrar por Regional**", territorios, key="filtro_region_main")
+            
+            # 7. Filtro Regional Principal (Selección Múltiple)
+            if "Territorio Comercial" in df_filtrado.columns:
+                territorios = sorted(list(df_filtrado["Territorio Comercial"].dropna().astype(str).unique()))
+                territorio_sel = st.multiselect("🌐 **Filtrar por Regional**", options=territorios, key="filtro_region_main")
+                if territorio_sel: 
+                    df_filtrado = df_filtrado[df_filtrado["Territorio Comercial"].isin(territorio_sel)]
+            
             st.markdown("</div>", unsafe_allow_html=True)
-
-            if territorio_sel != "Todos": df_filtrado = df_filtrado[df_filtrado["Territorio Comercial"] == territorio_sel]
 
             col1, col2, col3, col4, col5 = st.columns(5)
             with col1: render_tarjeta_metrica("Total Pendientes", len(df_filtrado), "#f8fafc", "#cbd5e1", "#0f172a")
