@@ -105,6 +105,11 @@ SHEET_URL_UMBRELLA = st.secrets.get(
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=644478638&single=true&output=csv",
 )
 
+SHEET_URL_PRODUCCION = st.secrets.get(
+    "SHEET_URL_PRODUCCION",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQliAhmZ9J0AnBghSj6yqLMWnjIDypEAZJ73ayyr9Z91uBa5zzsv1sf3RE2OtvEGz4j8R0o0y_YY9sj/pub?gid=1678812165&single=true&output=csv"
+)
+
 PASSWORD_CORRECTA = st.secrets.get("SYNC_PASSWORD", "admin123")
 
 
@@ -507,37 +512,37 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 elif tab_seleccionada == "📈 Sitios en Producción":
     st.header("📈 Dashboard de Sitios en Producción")
     
-    st.info("💡 **Tip:** Para automatizar esto a futuro, integra los datos al Google Sheet. Por ahora, sube tu archivo PlanBSS (.xls) aquí para visualizarlo.")
-    
-    uploaded_file = st.file_uploader("Sube el archivo PlanBSS (.xls)", type=["xls", "html", "htm"])
-    
-    if uploaded_file is not None:
+    if SHEET_URL_PRODUCCION == "PAGA_AQUI_EL_ENLACE_CSV_QUE_COPIASTE_EN_EL_PASO_6":
+        st.warning("⚠️ Debes pegar la URL CSV de la pestaña de Producción en el código (SHEET_URL_PRODUCCION).")
+    else:
         try:
-            # El Excel adjunto (BSSWorks) suele ser una tabla HTML por debajo
-            df_list = pd.read_html(uploaded_file)
-            df_bss = df_list[0]
+            with st.spinner('Cargando datos desde Google Sheets...'):
+                df_bss = cargar_datos(SHEET_URL_PRODUCCION)
             
-            if 'Fecha InSrv' not in df_bss.columns:
-                st.error("❌ El archivo no contiene la columna 'Fecha InSrv'. Verifica el formato exportado.")
+            # Buscar dinámicamente la columna que contenga "insrv"
+            col_fecha = next((col for col in df_bss.columns if 'insrv' in str(col).lower()), None)
+            
+            if not col_fecha:
+                st.error("❌ La pestaña de Google Sheets no contiene la columna 'Fecha InSrv'. Verifica los datos.")
             else:
-                # 1. Filtrar solo los sitios que tienen un valor en 'Fecha InSrv'
-                df_prod = df_bss[df_bss['Fecha InSrv'].notna()].copy()
+                # 1. Filtrar solo los sitios que tienen un valor
+                df_prod = df_bss[df_bss[col_fecha].notna()].copy()
                 
                 # 2. Agregar el estado 'Producción'
                 df_prod['Estado'] = 'Producción'
                 
-                # 3. Parsear fecha (formato día/mes/año) para permitir agrupar
-                df_prod['Fecha'] = pd.to_datetime(df_prod['Fecha InSrv'], format='%d/%m/%Y', errors='coerce')
+                # 3. Parsear fecha automáticamente
+                df_prod['Fecha'] = pd.to_datetime(df_prod[col_fecha], errors='coerce')
                 
                 # Extraer Mes y Semana ISO (Ej: 2026-W34)
                 df_prod['Mes'] = df_prod['Fecha'].dt.to_period('M').astype(str)
                 df_prod['Semana'] = df_prod['Fecha'].dt.strftime('%G-W%V') 
                 
-                # Descartar filas donde la fecha haya tenido errores de formato
+                # Descartar filas donde la fecha haya tenido errores
                 df_prod = df_prod.dropna(subset=['Fecha']).copy()
                 df_prod = df_prod.sort_values(by='Fecha')
                 
-                st.success(f"✅ Se identificaron {len(df_prod)} sitios en Producción.")
+                st.success(f"✅ Sincronización exitosa. Se identificaron {len(df_prod)} sitios en Producción.")
                 
                 # 4. Tarjetas de métricas rápidas
                 c1, c2, c3 = st.columns(3)
@@ -549,7 +554,7 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 
                 st.markdown("---")
                 
-                # 5. Generar gráficas (Mensual y Semanal) usando pestañas anidadas
+                # 5. Generar gráficas (Mensual y Semanal)
                 st.subheader("📊 Tendencia de Integración a Producción")
                 tab_mes, tab_sem = st.tabs(["📅 Comportamiento Mensual", "📆 Comportamiento Semanal"])
                 
@@ -561,25 +566,26 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                     df_sem = df_prod.groupby('Semana').size().reset_index(name='Cantidad de Sitios')
                     st.bar_chart(df_sem.set_index('Semana'), color="#059669")
                 
-                # 6. Mostrar tabla final con columnas esenciales
+                # 6. Mostrar tabla final
                 st.markdown("### 📋 Detalle de Sitios en Producción")
                 
-                cols_ideales = ['Region', 'Sitio', 'Equipo RF', 'Fecha InSrv', 'Estado']
+                cols_ideales = ['Region', 'Sitio', 'Equipo RF', col_fecha, 'Estado']
                 cols_mostrar = [c for c in cols_ideales if c in df_prod.columns]
                 
                 st.dataframe(df_prod[cols_mostrar], use_container_width=True, hide_index=True)
                 
-                # Botón de descarga del consolidado
+                # Botón de descarga
                 csv_prod = df_prod.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="📥 Descargar Reporte de Producción (CSV)", 
                     data=csv_prod, 
-                    file_name="sitios_produccion_filtrados.csv", 
+                    file_name="sitios_produccion_sincronizados.csv", 
                     mime="text/csv"
                 )
                 
         except Exception as e:
-            st.error(f"Hubo un problema al procesar el archivo: {e}")
+            st.error(f"Hubo un problema al conectar con Google Sheets: {e}")
+
 # =======
 import re
 from datetime import datetime
