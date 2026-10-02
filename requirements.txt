@@ -3,3 +3,4 @@ pandas
 lxml
 html5lib
 openpyxl
+plotly
