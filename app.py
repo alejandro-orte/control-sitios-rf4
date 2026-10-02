@@ -525,64 +525,83 @@ elif tab_seleccionada == "📈 Sitios en Producción":
             if not col_fecha:
                 st.error("❌ La pestaña de Google Sheets no contiene la columna 'Fecha InSrv'. Verifica los datos.")
             else:
-                # 1. Filtrar solo los sitios que tienen un valor
+                # 1. Filtrar y preparar datos base
                 df_prod = df_bss[df_bss[col_fecha].notna()].copy()
-                
-                # 2. Agregar el estado 'Producción'
                 df_prod['Estado'] = 'Producción'
-                
-                # 3. Parsear fecha automáticamente
                 df_prod['Fecha'] = pd.to_datetime(df_prod[col_fecha], errors='coerce')
-                
-                # Extraer Mes y Semana ISO (Ej: 2026-W34)
                 df_prod['Mes'] = df_prod['Fecha'].dt.to_period('M').astype(str)
                 df_prod['Semana'] = df_prod['Fecha'].dt.strftime('%G-W%V') 
-                
-                # Descartar filas donde la fecha haya tenido errores
                 df_prod = df_prod.dropna(subset=['Fecha']).copy()
                 df_prod = df_prod.sort_values(by='Fecha')
                 
-                st.success(f"✅ Sincronización exitosa. Se identificaron {len(df_prod)} sitios en Producción.")
+                # ==========================================
+                # 2. SECCIÓN DE FILTROS INTERACTIVOS
+                # ==========================================
+                st.markdown("### 🔍 Filtros de Búsqueda")
+                col_f1, col_f2 = st.columns(2)
                 
-                # 4. Tarjetas de métricas rápidas
+                with col_f1:
+                    meses = sorted(list(df_prod['Mes'].unique()))
+                    mes_sel = st.multiselect("📅 Filtrar por Mes", options=meses)
+                    
+                with col_f2:
+                    semanas = sorted(list(df_prod['Semana'].unique()))
+                    semana_sel = st.multiselect("📆 Filtrar por Semana", options=semanas)
+                
+                # Aplicar los filtros al dataframe
+                df_filtrado = df_prod.copy()
+                if mes_sel:
+                    df_filtrado = df_filtrado[df_filtrado['Mes'].isin(mes_sel)]
+                if semana_sel:
+                    df_filtrado = df_filtrado[df_filtrado['Semana'].isin(semana_sel)]
+                
+                st.success(f"✅ Mostrando {len(df_filtrado)} sitios en Producción según los filtros aplicados.")
+                
+                # ==========================================
+                # 3. TARJETAS DE MÉTRICAS (Usan datos filtrados)
+                # ==========================================
                 c1, c2, c3 = st.columns(3)
-                with c1: render_tarjeta_metrica("Total Producción", len(df_prod), "#f0fff4", "#9ae6b4", "#22543d")
-                with c2: render_tarjeta_metrica("Último Mes Activo", df_prod['Mes'].max(), "#ebf8ff", "#90cdf4", "#2b6cb0")
+                with c1: 
+                    render_tarjeta_metrica("Total Filtrados", len(df_filtrado), "#f0fff4", "#9ae6b4", "#22543d")
+                with c2: 
+                    ultimo_mes = df_filtrado['Mes'].max() if not df_filtrado.empty else "N/A"
+                    render_tarjeta_metrica("Último Mes Activo", ultimo_mes, "#ebf8ff", "#90cdf4", "#2b6cb0")
                 with c3: 
-                    regiones = df_prod['Region'].nunique() if 'Region' in df_prod.columns else 0
+                    regiones = df_filtrado['Region'].nunique() if 'Region' in df_filtrado.columns and not df_filtrado.empty else 0
                     render_tarjeta_metrica("Regiones Activas", regiones, "#f8fafc", "#cbd5e1", "#0f172a")
                 
                 st.markdown("---")
                 
-                # 5. Generar gráficas (Mensual y Semanal)
-                st.subheader("📊 Tendencia de Integración a Producción")
-                tab_mes, tab_sem = st.tabs(["📅 Comportamiento Mensual", "📆 Comportamiento Semanal"])
-                
-                with tab_mes:
-                    df_mes = df_prod.groupby('Mes').size().reset_index(name='Cantidad de Sitios')
-                    st.bar_chart(df_mes.set_index('Mes'), color="#1d4ed8")
+                # ==========================================
+                # 4. GRÁFICAS Y TABLA DE DETALLES
+                # ==========================================
+                if not df_filtrado.empty:
+                    st.subheader("📊 Tendencia de Integración a Producción")
+                    tab_mes, tab_sem = st.tabs(["📅 Comportamiento Mensual", "📆 Comportamiento Semanal"])
                     
-                with tab_sem:
-                    df_sem = df_prod.groupby('Semana').size().reset_index(name='Cantidad de Sitios')
-                    st.bar_chart(df_sem.set_index('Semana'), color="#059669")
-                
-                # 6. Mostrar tabla final
-                st.markdown("### 📋 Detalle de Sitios en Producción")
-                
-                cols_ideales = ['Region', 'Sitio', 'Equipo RF', col_fecha, 'Estado']
-                cols_mostrar = [c for c in cols_ideales if c in df_prod.columns]
-                
-                st.dataframe(df_prod[cols_mostrar], use_container_width=True, hide_index=True)
-                
-                # Botón de descarga
-                csv_prod = df_prod.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Descargar Reporte de Producción (CSV)", 
-                    data=csv_prod, 
-                    file_name="sitios_produccion_sincronizados.csv", 
-                    mime="text/csv"
-                )
+                    with tab_mes:
+                        df_mes = df_filtrado.groupby('Mes').size().reset_index(name='Cantidad de Sitios')
+                        st.bar_chart(df_mes.set_index('Mes'), color="#1d4ed8")
+                        
+                    with tab_sem:
+                        df_sem = df_filtrado.groupby('Semana').size().reset_index(name='Cantidad de Sitios')
+                        st.bar_chart(df_sem.set_index('Semana'), color="#059669")
+                    
+                    st.markdown("### 📋 Detalle de Sitios")
+                    cols_ideales = ['Region', 'Sitio', 'Equipo RF', 'Semana', col_fecha, 'Estado']
+                    cols_mostrar = [c for c in cols_ideales if c in df_filtrado.columns]
+                    
+                    st.dataframe(df_filtrado[cols_mostrar], use_container_width=True, hide_index=True)
+                    
+                    csv_prod = df_filtrado.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Descargar Reporte Filtrado (CSV)", 
+                        data=csv_prod, 
+                        file_name="sitios_produccion_filtrados.csv", 
+                        mime="text/csv"
+                    )
+                else:
+                    st.warning("⚠️ No hay sitios que coincidan con los filtros seleccionados.")
                 
         except Exception as e:
             st.error(f"Hubo un problema al conectar con Google Sheets: {e}")
-
