@@ -587,6 +587,8 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                             color_discrete_sequence=["#1d4ed8"]
                         )
                         fig_mes.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
+                        # ESTA ES LA LÍNEA MÁGICA:
+                        fig_mes.update_xaxes(type='category') 
                         fig_mes.update_traces(width=0.3 if len(df_mes) == 1 else None)
                         st.plotly_chart(fig_mes, use_container_width=True)
                         
@@ -596,6 +598,12 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                             df_sem, x='Semana', y='Cantidad de Sitios', 
                             text_auto=True, 
                             color_discrete_sequence=["#059669"]
+                        )
+                        fig_sem.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
+                        # ESTA ES LA LÍNEA MÁGICA:
+                        fig_sem.update_xaxes(type='category')
+                        fig_sem.update_traces(width=0.3 if len(df_sem) == 1 else None)
+                        st.plotly_chart(fig_sem, use_container_width=True)
                         )
                         fig_sem.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
                         fig_sem.update_traces(width=0.3 if len(df_sem) == 1 else None)
