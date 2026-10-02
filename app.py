@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -575,23 +576,38 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 # ==========================================
                 # 4. GRÁFICAS Y TABLA DE DETALLES
                 # ==========================================
+                # ==========================================
+                # 4. GRÁFICAS Y TABLA DE DETALLES
+                # ==========================================
                 if not df_filtrado.empty:
                     st.subheader("📊 Tendencia de Integración a Producción")
                     tab_mes, tab_sem = st.tabs(["📅 Comportamiento Mensual", "📆 Comportamiento Semanal"])
                     
                     with tab_mes:
                         df_mes = df_filtrado.groupby('Mes').size().reset_index(name='Cantidad de Sitios')
-                        st.bar_chart(df_mes.set_index('Mes'), color="#1d4ed8")
+                        # Crear gráfica con Plotly
+                        fig_mes = px.bar(
+                            df_mes, x='Mes', y='Cantidad de Sitios', 
+                            text_auto=True, # Muestra el número encima de la barra
+                            color_discrete_sequence=["#1d4ed8"]
+                        )
+                        fig_mes.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
+                        # Truco: Si solo hay 1 mes, hacer la barra más delgada
+                        fig_mes.update_traces(width=0.3 if len(df_mes) == 1 else None)
+                        st.plotly_chart(fig_mes, use_container_width=True)
                         
                     with tab_sem:
                         df_sem = df_filtrado.groupby('Semana').size().reset_index(name='Cantidad de Sitios')
-                        st.bar_chart(df_sem.set_index('Semana'), color="#059669")
-                    
-                    st.markdown("### 📋 Detalle de Sitios")
-                    cols_ideales = ['Region', 'Sitio', 'Equipo RF', 'Semana', col_fecha, 'Estado']
-                    cols_mostrar = [c for c in cols_ideales if c in df_filtrado.columns]
-                    
-                    st.dataframe(df_filtrado[cols_mostrar], use_container_width=True, hide_index=True)
+                        # Crear gráfica con Plotly
+                        fig_sem = px.bar(
+                            df_sem, x='Semana', y='Cantidad de Sitios', 
+                            text_auto=True, # Muestra el número encima de la barra
+                            color_discrete_sequence=["#059669"]
+                        )
+                        fig_sem.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
+                        # Truco: Si solo hay 1 semana, hacer la barra más delgada
+                        fig_sem.update_traces(width=0.3 if len(df_sem) == 1 else None)
+                        st.plotly_chart(fig_sem, use_container_width=True)
                     
                     csv_prod = df_filtrado.to_csv(index=False).encode('utf-8')
                     st.download_button(
