@@ -604,7 +604,7 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                         fig_sem.update_xaxes(type='category')
                         fig_sem.update_traces(width=0.3 if len(df_sem) == 1 else None)
                         st.plotly_chart(fig_sem, use_container_width=True)
-                        )
+                        
                         fig_sem.update_layout(xaxis_title="", yaxis_title="Cantidad de Sitios")
                         fig_sem.update_traces(width=0.3 if len(df_sem) == 1 else None)
                         st.plotly_chart(fig_sem, use_container_width=True)
