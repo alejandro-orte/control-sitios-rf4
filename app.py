@@ -619,4 +619,6 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                     )
                 else:
                     st.warning("⚠️ No hay sitios que coincidan con los filtros seleccionados.")
-               
+                except Exception as e:
+                    
+                st.error(f"Hubo un problema al conectar con Google Sheets: {e}")   
