@@ -596,33 +596,29 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                     st.subheader("📊 Tendencia de Integración a Producción")
                     tab_mes, tab_sem = st.tabs(["📅 Comportamiento Mensual", "📆 Comportamiento Semanal"])
                     
+                    # --- GRÁFICA MENSUAL ---
                     with tab_mes:
                         df_mes = df_filtrado.groupby('Mes').size().reset_index(name='Cantidad de Sitios')
                         fig_mes = px.bar(
                             df_mes, x='Mes', y='Cantidad de Sitios', 
                             text_auto=True,
-                            # Añadimos un color base más vibrante
                             color_discrete_sequence=["#2563eb"] 
                         )
                         
-                        # MEJORAS VISUALES PARA DAR EFECTO "PREMIUM"
                         fig_mes.update_traces(
                             textfont_size=14, 
                             textangle=0, 
                             textposition="outside", 
                             cliponaxis=False,
-                            # Redondear esquinas superiores (solo disponible en versiones recientes de plotly)
-                            marker_line_color='#1e3a8a', # Borde más oscuro
-                            marker_line_width=1.5,       # Grosor del borde
+                            marker_line_color='#1e3a8a', 
+                            marker_line_width=1.5,
                             opacity=0.9
                         )
                         
                         fig_mes.update_layout(
                             xaxis_title="", 
                             yaxis_title="Cantidad de Sitios",
-                            # Usar una plantilla más limpia
                             template="plotly_white", 
-                            # Mejorar márgenes y fondo
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             font=dict(family="Arial, sans-serif", size=12, color="#475569"),
@@ -630,22 +626,47 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                             margin=dict(t=40, b=40, l=40, r=40)
                         )
                         
-                        # ESTA ES LA LÍNEA MÁGICA:
-                        fig_mes.update_xaxes(
-                            type='category',
-                            showgrid=False, 
-                            tickangle=-45
-                        ) 
-                        fig_mes.update_yaxes(
-                            showgrid=True, 
-                            gridwidth=1, 
-                            gridcolor='#e2e8f0',
-                            zeroline=False
-                        )
-                        
-                        fig_mes.update_traces(width=0.4 if len(df_mes) == 1 else 0.6) # Ajustar grosor de barras
+                        fig_mes.update_xaxes(type='category', showgrid=False, tickangle=-45) 
+                        fig_mes.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#e2e8f0', zeroline=False)
+                        fig_mes.update_traces(width=0.4 if len(df_mes) == 1 else 0.6)
                         
                         st.plotly_chart(fig_mes, use_container_width=True)
+                        
+                    # --- GRÁFICA SEMANAL ---
+                    with tab_sem:
+                        df_sem = df_filtrado.groupby('Semana').size().reset_index(name='Cantidad de Sitios')
+                        fig_sem = px.bar(
+                            df_sem, x='Semana', y='Cantidad de Sitios', 
+                            text_auto=True, 
+                            color_discrete_sequence=["#059669"] # Color verde
+                        )
+                        
+                        fig_sem.update_traces(
+                            textfont_size=14, 
+                            textangle=0, 
+                            textposition="outside", 
+                            cliponaxis=False,
+                            marker_line_color='#047857', # Borde verde más oscuro
+                            marker_line_width=1.5,
+                            opacity=0.9
+                        )
+                        
+                        fig_sem.update_layout(
+                            xaxis_title="", 
+                            yaxis_title="Cantidad de Sitios",
+                            template="plotly_white", 
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            font=dict(family="Arial, sans-serif", size=12, color="#475569"),
+                            hovermode="x unified",
+                            margin=dict(t=40, b=40, l=40, r=40)
+                        )
+                        
+                        fig_sem.update_xaxes(type='category', showgrid=False, tickangle=-45)
+                        fig_sem.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#e2e8f0', zeroline=False)
+                        fig_sem.update_traces(width=0.4 if len(df_sem) == 1 else 0.6)
+                        
+                        st.plotly_chart(fig_sem, use_container_width=True)
                     
                     # ------------------------------------------
                     # RESTAURACIÓN DE LA TABLA DE SITIOS
