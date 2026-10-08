@@ -544,7 +544,7 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 st.markdown("### 🔍 Filtros de Búsqueda")
                 
                 # NUEVO: Búsqueda flexible por nombre de sitio
-                busqueda_sitio_prod = st.text_input("🔍 Buscar por Nombre de Sitio (Ej. Bogotá)", key="search_sitio_prod")
+                busqueda_sitio_prod = st.text_input("🔍 Buscar por Nombre de Sitio", key="search_sitio_prod")
                 
                 col_f1, col_f2 = st.columns(2)
                 
