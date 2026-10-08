@@ -538,7 +538,14 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 # ==========================================
                 # 2. SECCIÓN DE FILTROS INTERACTIVOS
                 # ==========================================
+                # ==========================================
+                # 2. SECCIÓN DE FILTROS INTERACTIVOS
+                # ==========================================
                 st.markdown("### 🔍 Filtros de Búsqueda")
+                
+                # NUEVO: Búsqueda flexible por nombre de sitio
+                busqueda_sitio_prod = st.text_input("🔍 Buscar por Nombre de Sitio (Ej. Bogotá)", key="search_sitio_prod")
+                
                 col_f1, col_f2 = st.columns(2)
                 
                 with col_f1:
@@ -551,6 +558,19 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 
                 # Aplicar los filtros al dataframe
                 df_filtrado = df_prod.copy()
+                
+                # Aplicar el filtro del nombre del sitio si el usuario escribió algo
+                if busqueda_sitio_prod:
+                    # Identificar la columna correcta ('Sitio' o 'Site Name')
+                    col_sitio_prod = 'Sitio' if 'Sitio' in df_filtrado.columns else ('Site Name' if 'Site Name' in df_filtrado.columns else None)
+                    
+                    if col_sitio_prod:
+                        # Separar por palabras permite buscar fragmentos (ej: "bogota 01")
+                        for palabra in busqueda_sitio_prod.split():
+                            df_filtrado = df_filtrado[df_filtrado[col_sitio_prod].astype(str).str.contains(palabra, case=False, na=False)]
+                    else:
+                        st.warning("⚠️ No se encontró la columna de nombre de sitio en los datos.")
+
                 if mes_sel:
                     df_filtrado = df_filtrado[df_filtrado['Mes'].isin(mes_sel)]
                 if semana_sel:
