@@ -356,9 +356,9 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
                 col_agrupador = col_sitio if col_sitio else (col_uuid if col_uuid else df_umbrella.columns[0])
                 df_umb_work = df_umbrella.copy()
 
-                # Parseo robusto de fechas sin forzar el primer número como día
+                # Fechas en formato día/mes/año (dd/mm/aaaa)
                 if col_fecha_estado:
-                    df_umb_work["_fecha_dt"] = pd.to_datetime(df_umb_work[col_fecha_estado], errors="coerce")
+                    df_umb_work["_fecha_dt"] = pd.to_datetime(df_umb_work[col_fecha_estado], dayfirst=True, errors="coerce")
                 else:
                     df_umb_work["_fecha_dt"] = pd.NaT
 
@@ -416,7 +416,7 @@ elif tab_seleccionada == "🚫 Sitios Rechazados (Umbrella)":
 
                 # 4. Clasificación por Días Transcurridos
                 if col_fecha_estado and not df_rechazados_clean.empty:
-                    fechas_estado_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], errors="coerce")
+                    fechas_estado_dt = pd.to_datetime(df_rechazados_clean[col_fecha_estado], dayfirst=True, errors="coerce")
                     fecha_actual_umb = pd.Timestamp.now().floor("d")
                     df_rechazados_clean["Dias_Num_Umbrella"] = (fecha_actual_umb - fechas_estado_dt).dt.days
 
@@ -529,7 +529,7 @@ elif tab_seleccionada == "📈 Sitios en Producción":
                 # 1. Filtrar y preparar datos base
                 df_prod = df_bss[df_bss[col_fecha].notna()].copy()
                 df_prod['Estado'] = 'Producción'
-                df_prod['Fecha'] = pd.to_datetime(df_prod[col_fecha], errors='coerce')
+                df_prod['Fecha'] = pd.to_datetime(df_prod[col_fecha], dayfirst=True, errors='coerce')
                 df_prod['Mes'] = df_prod['Fecha'].dt.to_period('M').astype(str)
                 df_prod['Semana'] = df_prod['Fecha'].dt.strftime('%G-W%V') 
                 df_prod = df_prod.dropna(subset=['Fecha']).copy()
